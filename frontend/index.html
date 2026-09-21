@@ -456,11 +456,7 @@ small {
 
 <div class="controls">
 
-    <input
-        id="symbol"
-        value="BTCUSDT"
-        placeholder="Mã tài sản"
-    >
+    <button id="symbolPickerButton" class="symbol-picker-button" type="button" onclick="openSymbolPicker()"><span id="selectedSymbolIcon">&#8383;</span><span id="selectedSymbol">BTCUSDT</span><span>&#9662;</span></button>
 
     <button onclick="runLiveMTFAnalysis()">
         🔴 Phân tích dữ liệu thật
@@ -1035,7 +1031,7 @@ SYMBOL SEARCH / WATCHLIST
 */
 
 const SYMBOLS = [
-    {symbol:"BTCUSDT",name:"Bitcoin / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"â‚¿"},
+    {symbol:"BTCUSDT",name:"Bitcoin / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"&#8383;"},
     {symbol:"ETHUSDT",name:"Ethereum / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"Îž"},
     {symbol:"SOLUSDT",name:"Solana / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"S"},
     {symbol:"BNBUSDT",name:"BNB / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"B"},
@@ -1109,35 +1105,31 @@ function renderSymbolList() {
 
     list.innerHTML = filtered.map(item => {
         const isWatched = watchlistSymbols.includes(item.symbol);
-        return \`
-            <div class="symbol-row" onclick="selectSymbol('\${item.symbol}')">
-                <div class="symbol-icon">\${item.icon}</div>
+        return `
+            <div class="symbol-row" onclick="selectSymbol('${item.symbol}')">
+                <div class="symbol-icon">${item.icon}</div>
                 <div>
-                    <div class="symbol-name">\${item.symbol}</div>
-                    <div class="symbol-description">\${item.name}</div>
+                    <div class="symbol-name">${item.symbol}</div>
+                    <div class="symbol-description">${item.name}</div>
                 </div>
-                <div class="symbol-exchange">\${item.exchange}</div>
+                <div class="symbol-exchange">${item.exchange}</div>
                 <button class="symbol-add" type="button"
-                    title="\${isWatched ? "XÃ³a khá»i danh sÃ¡ch theo dÃµi" : "ThÃªm vÃ o danh sÃ¡ch theo dÃµi"}"
-                    onclick="event.stopPropagation(); toggleWatchlist('\${item.symbol}')"
-                >\${isWatched ? "â˜…" : "+"}</button>
+                    title="${isWatched ? "XÃ³a khá»i danh sÃ¡ch theo dÃµi" : "ThÃªm vÃ o danh sÃ¡ch theo dÃµi"}"
+                    onclick="event.stopPropagation(); toggleWatchlist('${item.symbol}')"
+                >${isWatched ? "â˜…" : "+"}</button>
             </div>
-        \`;
+        `;
     }).join("");
 }
 
 function selectSymbol(symbol) {
     const item = SYMBOLS.find(x => x.symbol === symbol);
     if (!item) return;
-
-    document.getElementById("symbol").value = symbol;
-    document.getElementById("symbolPickerButton").innerHTML =
-        \`\${item.icon} \${item.symbol} <span style="color:#9ca3af;">âŒ„</span>\`;
-
+    document.getElementById("selectedSymbolIcon").innerHTML = item.icon;
+    document.getElementById("selectedSymbol").textContent = item.symbol;
     closeSymbolPicker();
     runLiveMTFAnalysis();
 }
-
 function toggleWatchlist(symbol) {
     if (watchlistSymbols.includes(symbol)) {
         watchlistSymbols = watchlistSymbols.filter(item => item !== symbol);
@@ -1162,14 +1154,14 @@ function renderWatchlist() {
         const item = SYMBOLS.find(x => x.symbol === symbol);
         if (!item) return "";
 
-        return \`
+        return `
             <span class="watch-item">
-                <button type="button" onclick="selectSymbol('\${item.symbol}')" title="PhÃ¢n tÃ­ch \${item.symbol}">
-                    \${item.icon} \${item.symbol}
+                <button type="button" onclick="selectSymbol('${item.symbol}')" title="PhÃ¢n tÃ­ch ${item.symbol}">
+                    ${item.icon} ${item.symbol}
                 </button>
-                <button type="button" onclick="event.stopPropagation(); toggleWatchlist('\${item.symbol}')" title="XÃ³a">Ã—</button>
+                <button type="button" onclick="event.stopPropagation(); toggleWatchlist('${item.symbol}')" title="XÃ³a">Ã—</button>
             </span>
-        \`;
+        `;
     }).join("");
 }
 /*
@@ -1182,9 +1174,8 @@ async function runLiveMTFAnalysis() {
 
     const symbol =
         document
-        .getElementById("symbol")
-        .value
-        .trim()
+        .getElementById("selectedSymbol")
+        .textContent.trim()
         .toUpperCase();
 
     const status =
