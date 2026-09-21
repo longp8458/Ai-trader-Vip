@@ -1,0 +1,1865 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TraderAI V6</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #0f172a;
+    color: #e5e7eb;
+}
+
+header {
+    padding: 20px;
+    background: #111827;
+    border-bottom: 1px solid #374151;
+}
+
+h1 {
+    margin: 0;
+}
+
+.container {
+    max-width: 1400px;
+    margin: auto;
+    padding: 20px;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+input, button {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #374151;
+    background: #1f2937;
+    color: white;
+}
+
+button {
+    cursor: pointer;
+    background: #2563eb;
+}
+
+button:hover {
+    background: #1d4ed8;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.card {
+    background: #111827;
+    border: 1px solid #374151;
+    border-radius: 12px;
+    padding: 18px;
+}
+
+.card h2 {
+    margin-top: 0;
+    font-size: 18px;
+}
+
+.value {
+    font-size: 25px;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.buy {
+    color: #22c55e;
+}
+
+.sell {
+    color: #ef4444;
+}
+
+.neutral {
+    color: #f59e0b;
+}
+
+.mtf-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.mtf-table th,
+.mtf-table td {
+    border-bottom: 1px solid #374151;
+    padding: 12px;
+    text-align: left;
+}
+
+.mtf-table th {
+    background: #1f2937;
+}
+
+.section {
+    margin-top: 20px;
+}
+
+.status {
+    margin-top: 10px;
+    color: #93c5fd;
+}
+
+.reasoning {
+    line-height: 1.7;
+    white-space: pre-line;
+}
+
+.volume-positive {
+    color: #22c55e;
+}
+
+.volume-negative {
+    color: #ef4444;
+}
+
+.volume-neutral {
+    color: #f59e0b;
+}
+
+.spike {
+    font-weight: bold;
+    color: #f97316;
+}
+
+.info-box {
+    background: #0f172a;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 15px;
+    line-height: 1.7;
+}
+
+small {
+    color: #9ca3af;
+}
+
+.live-badge {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #14532d;
+    color: #86efac;
+    font-size: 13px;
+}
+
+.source {
+    color: #9ca3af;
+    font-size: 13px;
+    margin-top: 8px;
+}
+
+/* =========================================
+   TIMEFRAME SELECTOR
+========================================= */
+
+.timeframe-selector {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 15px 0 20px 0;
+}
+
+.timeframe-btn {
+    min-width: 65px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid #374151;
+    background: #1f2937;
+    color: #d1d5db;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.timeframe-btn:hover {
+    background: #374151;
+}
+
+.timeframe-btn.active {
+    background: #2563eb;
+    border-color: #60a5fa;
+    color: white;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+}
+
+.selected-timeframe {
+    margin-bottom: 15px;
+    color: #93c5fd;
+    font-size: 14px;
+}
+
+/* =========================================
+   TRADE LEVEL COLORS
+========================================= */
+
+.entry-value {
+    color: #60a5fa;
+}
+
+.sl-value {
+    color: #ef4444;
+}
+
+.tp-value {
+    color: #22c55e;
+}
+
+.rr-value {
+    color: #f59e0b;
+}
+
+@media (max-width: 700px) {
+    .mtf-table {
+        font-size: 13px;
+    }
+
+    .timeframe-btn {
+        min-width: 55px;
+        padding: 8px 12px;
+    }
+}
+</style>
+
+</head>
+
+<body>
+
+<header>
+    <h1>🤖 TraderAI V6</h1>
+
+    <div>
+        Hệ thống phân tích thị trường — Chỉ phân tích
+    </div>
+
+    <div class="live-badge">
+        ● LIVE MARKET DATA
+    </div>
+
+    <div id="sourceInfo" class="source">
+        Nguồn: Binance Spot Public Market Data
+    </div>
+</header>
+
+<div class="container">
+
+<!-- CONTROLS -->
+
+<div class="controls">
+
+    <input
+        id="symbol"
+        value="BTCUSDT"
+        placeholder="Mã tài sản"
+    >
+
+    <button onclick="runLiveMTFAnalysis()">
+        🔴 Phân tích dữ liệu thật
+    </button>
+
+    <button onclick="runLiveMTFAnalysis()">
+        🔄 Refresh
+    </button>
+
+</div>
+
+<div id="status" class="status">
+    Sẵn sàng phân tích dữ liệu thị trường thật.
+</div>
+
+
+<!-- MAIN SUMMARY -->
+
+<div class="grid section">
+
+    <div class="card">
+        <h2>AI Consensus</h2>
+        <div id="consensus" class="value neutral">
+            NEUTRAL
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Độ tin cậy</h2>
+        <div id="confidence" class="value">
+            0%
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>BUY Score</h2>
+        <div id="buyScore" class="value buy">
+            0
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>SELL Score</h2>
+        <div id="sellScore" class="value sell">
+            0
+        </div>
+    </div>
+
+</div>
+
+
+<!-- MTF -->
+
+<div class="card section">
+
+    <h2>📊 Phân tích đa khung thời gian</h2>
+
+    <table class="mtf-table">
+
+        <thead>
+
+            <tr>
+                <th>Khung thời gian</th>
+                <th>Tín hiệu</th>
+                <th>Độ tin cậy</th>
+                <th>Trọng số</th>
+                <th>Điểm có trọng số</th>
+            </tr>
+
+        </thead>
+
+        <tbody id="mtfBody"></tbody>
+
+    </table>
+
+</div>
+
+
+<!-- TRADE ANALYSIS -->
+
+<div class="card section">
+
+    <h2>📐 Mức giá tham chiếu phân tích</h2>
+
+    <!-- TIMEFRAME SELECTOR -->
+
+    <div class="timeframe-selector">
+
+        <button
+            class="timeframe-btn active"
+            data-timeframe="M1"
+            onclick="selectTradeTimeframe('M1')"
+        >
+            M1
+        </button>
+
+        <button
+            class="timeframe-btn"
+            data-timeframe="M5"
+            onclick="selectTradeTimeframe('M5')"
+        >
+            M5
+        </button>
+
+        <button
+            class="timeframe-btn"
+            data-timeframe="M15"
+            onclick="selectTradeTimeframe('M15')"
+        >
+            M15
+        </button>
+
+        <button
+            class="timeframe-btn"
+            data-timeframe="H1"
+            onclick="selectTradeTimeframe('H1')"
+        >
+            H1
+        </button>
+
+        <button
+            class="timeframe-btn"
+            data-timeframe="D1"
+            onclick="selectTradeTimeframe('D1')"
+        >
+            D1
+        </button>
+
+        <button
+            class="timeframe-btn"
+            data-timeframe="W1"
+            onclick="selectTradeTimeframe('W1')"
+        >
+            W1
+        </button>
+
+    </div>
+
+    <div class="selected-timeframe">
+        Khung đang xem:
+        <strong id="selectedTimeframe">
+            M1
+        </strong>
+    </div>
+
+
+    <div class="grid">
+
+        <div>
+            <strong>Entry tham chiếu</strong>
+
+            <div
+                id="entry"
+                class="value entry-value"
+            >
+                -
+            </div>
+        </div>
+
+
+        <div>
+            <strong>Stop Loss tham chiếu</strong>
+
+            <div
+                id="sl"
+                class="value sl-value"
+            >
+                -
+            </div>
+        </div>
+
+
+        <div>
+            <strong>TP1</strong>
+
+            <div
+                id="tp1"
+                class="value tp-value"
+            >
+                -
+            </div>
+        </div>
+
+
+        <div>
+            <strong>TP2</strong>
+
+            <div
+                id="tp2"
+                class="value tp-value"
+            >
+                -
+            </div>
+        </div>
+
+
+        <div>
+            <strong>TP3</strong>
+
+            <div
+                id="tp3"
+                class="value tp-value"
+            >
+                -
+            </div>
+        </div>
+
+
+        <div>
+            <strong>Risk / Reward</strong>
+
+            <div
+                id="rr"
+                class="value rr-value"
+            >
+                -
+            </div>
+        </div>
+
+    </div>
+
+    <small>
+        Các mức trên chỉ là mức tham chiếu từ mô hình phân tích,
+        không phải lệnh giao dịch.
+    </small>
+
+</div>
+
+
+<!-- TECHNICAL -->
+
+<div class="card section">
+
+    <h2>📈 Phân tích kỹ thuật</h2>
+
+    <div class="grid">
+
+        <div>
+            <strong>Giá</strong>
+            <div id="price" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>EMA 20</strong>
+            <div id="ema20" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>EMA 50</strong>
+            <div id="ema50" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>EMA 200</strong>
+            <div id="ema200" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>RSI</strong>
+            <div id="rsi" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>MACD</strong>
+            <div id="macd" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>ATR</strong>
+            <div id="atr" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>Volume</strong>
+            <div id="volume" class="value">-</div>
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- VOLUME -->
+
+<div class="card section">
+
+    <h2>📊 Volume Engine</h2>
+
+    <div class="grid">
+
+        <div>
+            <strong>Volume hiện tại</strong>
+            <div id="volumeCurrent" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>Volume SMA20</strong>
+            <div id="volumeSma20" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>Volume Ratio</strong>
+            <div id="volumeRatio" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>Volume Spike</strong>
+            <div id="volumeSpike" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>OBV</strong>
+            <div id="obv" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>Xu hướng OBV</strong>
+            <div id="obvTrend" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>VWAP</strong>
+            <div id="vwap" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>Giá so với VWAP</strong>
+            <div id="priceVsVwap" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>Tín hiệu Volume</strong>
+            <div id="volumeSignal" class="value">-</div>
+        </div>
+
+    </div>
+
+    <div class="info-box">
+
+        <strong>🧠 Nhận xét Volume</strong>
+
+        <div
+            id="volumeReason"
+            style="margin-top: 8px;"
+        >
+            Chưa có dữ liệu.
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- SUPPORT / RESISTANCE -->
+
+<div class="card section">
+
+    <h2>🎯 Hỗ trợ & Kháng cự</h2>
+
+    <div class="grid">
+
+        <div>
+            <strong>Hỗ trợ</strong>
+            <div id="support" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>Kháng cự</strong>
+            <div id="resistance" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>Thanh khoản phía trên</strong>
+            <div id="liquidityHighs" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>Thanh khoản phía dưới</strong>
+            <div id="liquidityLows" class="value">-</div>
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- STRUCTURE -->
+
+<div class="card section">
+
+    <h2>🏗 Cấu trúc thị trường</h2>
+
+    <div class="grid">
+
+        <div>
+            <strong>Xu hướng</strong>
+            <div id="trend" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>Cấu trúc</strong>
+            <div id="structure" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>BOS</strong>
+            <div id="bos" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>CHoCH</strong>
+            <div id="choch" class="value">-</div>
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- CANDLE -->
+
+<div class="card section">
+
+    <h2>🕯 Mô hình nến</h2>
+
+    <div class="grid">
+
+        <div>
+            <strong>Mô hình</strong>
+            <div id="pattern" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>Tín hiệu</strong>
+            <div id="candleSignal" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>Độ mạnh</strong>
+            <div id="candleStrength" class="value">-</div>
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- REGIME -->
+
+<div class="card section">
+
+    <h2>🌐 Trạng thái thị trường</h2>
+
+    <div class="grid">
+
+        <div>
+            <strong>Regime</strong>
+            <div id="regime" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>Xu hướng Regime</strong>
+            <div id="regimeTrend" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>Biến động</strong>
+            <div id="volatility" class="value">-</div>
+        </div>
+
+        <div>
+            <strong>ATR %</strong>
+            <div id="atrPercent" class="value">-</div>
+        </div>
+
+    </div>
+
+    <div class="info-box">
+
+        <strong>Giải thích Regime</strong>
+
+        <div
+            id="regimeReason"
+            style="margin-top: 8px;"
+        >
+            Chưa có dữ liệu.
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- REASONING -->
+
+<div class="card section">
+
+    <h2>🧠 AI Reasoning</h2>
+
+    <div
+        id="reasoning"
+        class="reasoning"
+    >
+        Chưa có dữ liệu.
+    </div>
+
+</div>
+
+</div>
+
+
+<script>
+
+const API_URL = "http://127.0.0.1:8000";
+
+const TIMEFRAMES = [
+    "M1",
+    "M5",
+    "M15",
+    "H1",
+    "D1",
+    "W1"
+];
+
+/*
+=====================================================
+TRẠNG THÁI PHÂN TÍCH
+=====================================================
+*/
+
+let latestMTFData = null;
+
+// M1 mặc định
+let selectedTradeTimeframe = "M1";
+
+
+/*
+=====================================================
+LIVE MTF
+=====================================================
+*/
+
+async function runLiveMTFAnalysis() {
+
+    const symbol =
+        document
+        .getElementById("symbol")
+        .value
+        .trim()
+        .toUpperCase();
+
+    const status =
+        document.getElementById("status");
+
+    if (!symbol) {
+
+        status.innerText =
+            "❌ Vui lòng nhập mã tài sản.";
+
+        return;
+    }
+
+    status.innerText =
+        `⏳ Đang lấy dữ liệu thật ${symbol} M1 → W1...`;
+
+    try {
+
+        const response = await fetch(
+            `${API_URL}/api/analyze-live-mtf?symbol=${encodeURIComponent(symbol)}&limit=300`,
+            {
+                method: "GET",
+                cache: "no-store"
+            }
+        );
+
+        if (!response.ok) {
+
+            throw new Error(
+                `HTTP ${response.status}`
+            );
+        }
+
+        const data =
+            await response.json();
+
+        if (data.status !== "ok") {
+
+            throw new Error(
+                data.message ||
+                "Backend trả về lỗi."
+            );
+        }
+
+        // Lưu toàn bộ dữ liệu MTF
+        latestMTFData = data;
+
+        displayMTF(data);
+
+        // Sau khi cập nhật dữ liệu,
+        // hiển thị đúng timeframe đang chọn
+        displaySelectedTradeTimeframe();
+
+        status.innerText =
+            `✅ Đã cập nhật ${symbol} — ${new Date().toLocaleTimeString("vi-VN")}`;
+
+    } catch (error) {
+
+        console.error(error);
+
+        status.innerText =
+            `❌ Không thể lấy dữ liệu thật: ${error.message}`;
+
+    }
+}
+
+
+/*
+=====================================================
+HIỂN THỊ MTF
+=====================================================
+*/
+
+function displayMTF(data) {
+
+    const consensus =
+        data.consensus || {};
+
+    setText(
+        "consensus",
+        consensus.consensus ||
+        "NEUTRAL"
+    );
+
+    setText(
+        "confidence",
+        `${Number(
+            consensus.confidence || 0
+        ).toFixed(2)}%`
+    );
+
+    setText(
+        "buyScore",
+        Number(
+            consensus.buy_score || 0
+        ).toFixed(4)
+    );
+
+    setText(
+        "sellScore",
+        Number(
+            consensus.sell_score || 0
+        ).toFixed(4)
+    );
+
+    setClass(
+        "consensus",
+        `value ${signalClass(
+            consensus.consensus
+        )}`
+    );
+
+
+    const body =
+        document.getElementById("mtfBody");
+
+    body.innerHTML = "";
+
+
+    for (const timeframe of TIMEFRAMES) {
+
+        const item =
+            consensus.timeframes?.[timeframe];
+
+        if (!item) {
+            continue;
+        }
+
+
+        const row =
+            document.createElement("tr");
+
+
+        row.innerHTML = `
+
+            <td>
+                <strong>${timeframe}</strong>
+            </td>
+
+            <td class="${signalClass(item.signal)}">
+                ${item.signal}
+            </td>
+
+            <td>
+                ${Number(
+                    item.confidence || 0
+                ).toFixed(2)}%
+            </td>
+
+            <td>
+                ${(Number(
+                    item.weight || 0
+                ) * 100).toFixed(0)}%
+            </td>
+
+            <td>
+                ${Number(
+                    item.weighted_score || 0
+                ).toFixed(4)}
+            </td>
+
+        `;
+
+
+        body.appendChild(row);
+    }
+
+
+    const source =
+        data.source ||
+        "Binance Spot Public Market Data";
+
+
+    setText(
+        "sourceInfo",
+        `Nguồn dữ liệu: ${source}`
+    );
+}
+
+
+/*
+=====================================================
+CHỌN TIMEFRAME CHO ENTRY / SL / TP
+=====================================================
+*/
+
+function selectTradeTimeframe(timeframe) {
+
+    if (!TIMEFRAMES.includes(timeframe)) {
+        return;
+    }
+
+    selectedTradeTimeframe =
+        timeframe;
+
+
+    // Đổi nút active
+    document
+        .querySelectorAll(".timeframe-btn")
+        .forEach(button => {
+
+            button.classList.toggle(
+                "active",
+                button.dataset.timeframe === timeframe
+            );
+
+        });
+
+
+    setText(
+        "selectedTimeframe",
+        timeframe
+    );
+
+
+    displaySelectedTradeTimeframe();
+}
+
+
+/*
+=====================================================
+HIỂN THỊ ENTRY / SL / TP THEO TIMEFRAME
+=====================================================
+*/
+
+function displaySelectedTradeTimeframe() {
+
+    if (!latestMTFData) {
+        return;
+    }
+
+
+    const timeframe =
+        selectedTradeTimeframe;
+
+
+    const item =
+        latestMTFData.timeframes?.[timeframe];
+
+
+    if (!item || !item.analysis) {
+
+        clearTradeLevels();
+
+        return;
+    }
+
+
+    const analysis =
+        item.analysis;
+
+
+    // Cập nhật toàn bộ dashboard
+    // theo timeframe đang chọn
+    displayAnalysis(analysis);
+}
+
+
+/*
+=====================================================
+XÓA TRADE LEVELS
+=====================================================
+*/
+
+function clearTradeLevels() {
+
+    setText("entry", "-");
+    setText("sl", "-");
+    setText("tp1", "-");
+    setText("tp2", "-");
+    setText("tp3", "-");
+    setText("rr", "-");
+}
+
+
+/*
+=====================================================
+HIỂN THỊ PHÂN TÍCH
+=====================================================
+*/
+
+function displayAnalysis(analysis) {
+
+    if (!analysis) {
+        return;
+    }
+
+
+    const indicators =
+        analysis.indicators || {};
+
+    const structure =
+        analysis.structure || {};
+
+    const candle =
+        analysis.candlestick || {};
+
+    const volume =
+        analysis.volume || {};
+
+    const levels =
+        analysis.levels || {};
+
+    const tradeLevels =
+        analysis.trade_levels || {};
+
+    const regime =
+        analysis.regime || {};
+
+
+    /*
+    =============================
+    TECHNICAL
+    =============================
+    */
+
+    setText(
+        "price",
+        formatUSD(analysis.price)
+    );
+
+    setText(
+        "ema20",
+        formatUSD(indicators.ema20)
+    );
+
+    setText(
+        "ema50",
+        formatUSD(indicators.ema50)
+    );
+
+    setText(
+        "ema200",
+        formatUSD(indicators.ema200)
+    );
+
+    setText(
+        "rsi",
+        formatDecimal(indicators.rsi)
+    );
+
+    setText(
+        "macd",
+        formatDecimal(indicators.macd)
+    );
+
+    setText(
+        "atr",
+        formatUSD(indicators.atr)
+    );
+
+    setText(
+        "volume",
+        formatDecimal(indicators.volume)
+    );
+
+
+    /*
+    =============================
+    VOLUME
+    =============================
+    */
+
+    setText(
+        "volumeCurrent",
+        formatDecimal(volume.volume)
+    );
+
+    setText(
+        "volumeSma20",
+        formatDecimal(volume.volume_sma20)
+    );
+
+
+    if (
+        volume.volume_ratio !== null &&
+        volume.volume_ratio !== undefined
+    ) {
+
+        setText(
+            "volumeRatio",
+            `${Number(
+                volume.volume_ratio
+            ).toFixed(2)}x`
+        );
+
+    } else {
+
+        setText(
+            "volumeRatio",
+            "-"
+        );
+
+    }
+
+
+    if (volume.volume_spike) {
+
+        setText(
+            "volumeSpike",
+            "🚨 CÓ"
+        );
+
+        setClass(
+            "volumeSpike",
+            "value spike"
+        );
+
+    } else {
+
+        setText(
+            "volumeSpike",
+            "Không"
+        );
+
+        setClass(
+            "volumeSpike",
+            "value volume-neutral"
+        );
+
+    }
+
+
+    setText(
+        "obv",
+        formatDecimal(volume.obv)
+    );
+
+    setText(
+        "obvTrend",
+        translateVolumeTrend(
+            volume.obv_trend
+        )
+    );
+
+    setText(
+        "vwap",
+        formatUSD(volume.vwap)
+    );
+
+    setText(
+        "priceVsVwap",
+        translatePriceVsVwap(
+            volume.price_vs_vwap
+        )
+    );
+
+    setText(
+        "volumeSignal",
+        volume.signal || "-"
+    );
+
+    setClass(
+        "volumeSignal",
+        `value ${signalClass(
+            volume.signal
+        )}`
+    );
+
+    setText(
+        "volumeReason",
+        volume.reason ||
+        "Chưa có dữ liệu."
+    );
+
+
+    /*
+    =============================
+    SUPPORT / RESISTANCE
+    =============================
+    */
+
+    setText(
+        "support",
+        formatUSDArray(
+            levels.support
+        )
+    );
+
+    setText(
+        "resistance",
+        formatUSDArray(
+            levels.resistance
+        )
+    );
+
+    setText(
+        "liquidityHighs",
+        formatUSDArray(
+            levels.liquidity_highs
+        )
+    );
+
+    setText(
+        "liquidityLows",
+        formatUSDArray(
+            levels.liquidity_lows
+        )
+    );
+
+
+    /*
+    =============================
+    STRUCTURE
+    =============================
+    */
+
+    setText(
+        "trend",
+        translateTrend(
+            structure.trend
+        )
+    );
+
+    setText(
+        "structure",
+        structure.structure ||
+        "-"
+    );
+
+    setText(
+        "bos",
+        structure.bos
+            ? "Có"
+            : "Không"
+    );
+
+    setText(
+        "choch",
+        structure.choch
+            ? "Có"
+            : "Không"
+    );
+
+
+    /*
+    =============================
+    CANDLE
+    =============================
+    */
+
+    setText(
+        "pattern",
+        translatePattern(
+            candle.pattern
+        )
+    );
+
+    setText(
+        "candleSignal",
+        candle.signal || "-"
+    );
+
+    setClass(
+        "candleSignal",
+        `value ${signalClass(
+            candle.signal
+        )}`
+    );
+
+    setText(
+        "candleStrength",
+        candle.strength ?? "-"
+    );
+
+
+    /*
+    =============================
+    REGIME
+    =============================
+    */
+
+    setText(
+        "regime",
+        translateRegime(
+            regime.regime
+        )
+    );
+
+    setText(
+        "regimeTrend",
+        translateTrend(
+            regime.trend
+        )
+    );
+
+    setText(
+        "volatility",
+        translateVolatility(
+            regime.volatility
+        )
+    );
+
+    setText(
+        "atrPercent",
+        regime.atr_percent !== undefined
+            ? `${Number(
+                regime.atr_percent
+            ).toFixed(2)}%`
+            : "-"
+    );
+
+    setText(
+        "regimeReason",
+        regime.reason ||
+        "Chưa có dữ liệu."
+    );
+
+
+    /*
+    =============================
+    TRADE LEVELS
+    =============================
+    */
+
+    setText(
+        "entry",
+        formatUSD(
+            tradeLevels.entry
+        )
+    );
+
+    setText(
+        "sl",
+        formatUSD(
+            tradeLevels.sl
+        )
+    );
+
+    setText(
+        "tp1",
+        formatUSD(
+            tradeLevels.tp1
+        )
+    );
+
+    setText(
+        "tp2",
+        formatUSD(
+            tradeLevels.tp2
+        )
+    );
+
+    setText(
+        "tp3",
+        formatUSD(
+            tradeLevels.tp3
+        )
+    );
+
+
+    if (tradeLevels.rr) {
+
+        setText(
+            "rr",
+            `TP1 1:${tradeLevels.rr.tp1} | ` +
+            `TP2 1:${tradeLevels.rr.tp2} | ` +
+            `TP3 1:${tradeLevels.rr.tp3}`
+        );
+
+    } else {
+
+        setText(
+            "rr",
+            "-"
+        );
+
+    }
+
+
+    /*
+    =============================
+    REASONING
+    =============================
+    */
+
+    setText(
+        "reasoning",
+        analysis.reasoning ||
+        "Chưa có reasoning."
+    );
+}
+
+
+/*
+=====================================================
+FORMAT USD
+=====================================================
+*/
+
+function formatUSD(value) {
+
+    if (
+        value === null ||
+        value === undefined ||
+        Number.isNaN(Number(value))
+    ) {
+        return "-";
+    }
+
+
+    return new Intl.NumberFormat(
+        "en-US",
+        {
+            style: "currency",
+            currency: "USD",
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }
+    ).format(Number(value));
+}
+
+
+/*
+=====================================================
+FORMAT DECIMAL
+=====================================================
+*/
+
+function formatDecimal(value) {
+
+    if (
+        value === null ||
+        value === undefined ||
+        Number.isNaN(Number(value))
+    ) {
+        return "-";
+    }
+
+
+    return Number(value).toFixed(4);
+}
+
+
+/*
+=====================================================
+FORMAT USD ARRAY
+=====================================================
+*/
+
+function formatUSDArray(values) {
+
+    if (
+        !Array.isArray(values) ||
+        values.length === 0
+    ) {
+        return "-";
+    }
+
+
+    return values
+        .map(value => formatUSD(value))
+        .join(" | ");
+}
+
+
+/*
+=====================================================
+TEXT
+=====================================================
+*/
+
+function setText(id, value) {
+
+    const element =
+        document.getElementById(id);
+
+    if (element) {
+
+        element.innerText =
+            value ?? "-";
+
+    }
+}
+
+
+/*
+=====================================================
+CLASS
+=====================================================
+*/
+
+function setClass(id, className) {
+
+    const element =
+        document.getElementById(id);
+
+    if (element) {
+
+        element.className =
+            className;
+
+    }
+}
+
+
+/*
+=====================================================
+SIGNAL
+=====================================================
+*/
+
+function signalClass(signal) {
+
+    if (signal === "BUY") {
+        return "buy";
+    }
+
+    if (signal === "SELL") {
+        return "sell";
+    }
+
+    return "neutral";
+}
+
+
+/*
+=====================================================
+VOLUME TREND
+=====================================================
+*/
+
+function translateVolumeTrend(value) {
+
+    if (value === "RISING") {
+        return "Đang tăng";
+    }
+
+    if (value === "FALLING") {
+        return "Đang giảm";
+    }
+
+    if (value === "FLAT") {
+        return "Đi ngang";
+    }
+
+    return "Chưa xác định";
+}
+
+
+/*
+=====================================================
+PRICE VS VWAP
+=====================================================
+*/
+
+function translatePriceVsVwap(value) {
+
+    if (value === "ABOVE") {
+        return "Trên VWAP";
+    }
+
+    if (value === "BELOW") {
+        return "Dưới VWAP";
+    }
+
+    if (value === "AT_VWAP") {
+        return "Tại VWAP";
+    }
+
+    return "Chưa xác định";
+}
+
+
+/*
+=====================================================
+TREND
+=====================================================
+*/
+
+function translateTrend(value) {
+
+    if (value === "BULLISH") {
+        return "Tăng";
+    }
+
+    if (value === "BEARISH") {
+        return "Giảm";
+    }
+
+    if (value === "NEUTRAL") {
+        return "Trung tính";
+    }
+
+    return value || "-";
+}
+
+
+/*
+=====================================================
+VOLATILITY
+=====================================================
+*/
+
+function translateVolatility(value) {
+
+    if (value === "HIGH") {
+        return "Cao";
+    }
+
+    if (value === "LOW") {
+        return "Thấp";
+    }
+
+    if (value === "NORMAL") {
+        return "Bình thường";
+    }
+
+    return value || "-";
+}
+
+
+/*
+=====================================================
+REGIME
+=====================================================
+*/
+
+function translateRegime(value) {
+
+    const map = {
+
+        "TRENDING_BULLISH_HIGH_VOLATILITY":
+            "Xu hướng tăng + biến động cao",
+
+        "TRENDING_BULLISH":
+            "Xu hướng tăng",
+
+        "TRENDING_BEARISH_HIGH_VOLATILITY":
+            "Xu hướng giảm + biến động cao",
+
+        "TRENDING_BEARISH":
+            "Xu hướng giảm",
+
+        "HIGH_VOLATILITY":
+            "Biến động cao",
+
+        "LOW_VOLATILITY":
+            "Biến động thấp",
+
+        "RANGING":
+            "Đi ngang",
+
+        "UNKNOWN":
+            "Chưa xác định"
+    };
+
+
+    return map[value] ||
+        value ||
+        "-";
+}
+
+
+/*
+=====================================================
+CANDLE
+=====================================================
+*/
+
+function translatePattern(value) {
+
+    const map = {
+
+        "DOJI":
+            "Doji",
+
+        "HAMMER":
+            "Hammer",
+
+        "SHOOTING_STAR":
+            "Shooting Star",
+
+        "BULLISH_ENGULFING":
+            "Nhấn chìm tăng",
+
+        "BEARISH_ENGULFING":
+            "Nhấn chìm giảm",
+
+        "MORNING_STAR":
+            "Sao mai",
+
+        "EVENING_STAR":
+            "Sao hôm",
+
+        "INSIDE_BAR":
+            "Inside Bar",
+
+        "BULLISH_MARUBOZU":
+            "Marubozu tăng",
+
+        "BEARISH_MARUBOZU":
+            "Marubozu giảm",
+
+        "BULLISH":
+            "Nến tăng",
+
+        "BEARISH":
+            "Nến giảm",
+
+        "FLAT":
+            "Nến phẳng",
+
+        "UNKNOWN":
+            "Chưa xác định"
+    };
+
+
+    return map[value] ||
+        value ||
+        "-";
+}
+
+
+/*
+=====================================================
+AUTO LOAD
+=====================================================
+*/
+
+window.addEventListener(
+    "load",
+    () => {
+
+        // M1 mặc định
+        selectedTradeTimeframe = "M1";
+
+        // Tự phân tích lần đầu
+        runLiveMTFAnalysis();
+
+        // Tự cập nhật mỗi 10 giây
+        setInterval(
+            () => {
+                runLiveMTFAnalysis();
+            },
+            10000
+        );
+
+    }
+);
+
+</script>
+
+</body>
+</html>
