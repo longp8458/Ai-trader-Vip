@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
@@ -226,6 +226,198 @@ small {
     color: #f59e0b;
 }
 
+/* =========================================
+   SYMBOL SEARCH / WATCHLIST
+========================================= */
+
+.symbol-picker-button {
+    min-width: 190px;
+    text-align: left;
+    background: #1f2937;
+    border: 1px solid #475569;
+    font-weight: bold;
+}
+
+.symbol-picker-button:hover {
+    background: #374151;
+}
+
+.symbol-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+}
+
+.symbol-modal-backdrop.open {
+    display: flex;
+}
+
+.symbol-modal {
+    width: min(760px, 96vw);
+    max-height: 86vh;
+    overflow: hidden;
+    background: #171717;
+    border: 1px solid #3f3f46;
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.55);
+}
+
+.symbol-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px;
+    border-bottom: 1px solid #3f3f46;
+}
+
+.symbol-modal-header h2 {
+    margin: 0;
+    font-size: 19px;
+}
+
+.symbol-close {
+    background: transparent;
+    border: 0;
+    font-size: 24px;
+    padding: 4px 8px;
+    color: #d4d4d8;
+}
+
+.symbol-search-wrap {
+    padding: 14px 18px 8px;
+}
+
+.symbol-search {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 15px;
+    background: #27272a;
+}
+
+.symbol-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 18px 14px;
+}
+
+.symbol-tab {
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: #27272a;
+    border: 1px solid #3f3f46;
+    color: #d4d4d8;
+    cursor: pointer;
+}
+
+.symbol-tab.active {
+    background: #e5e7eb;
+    color: #18181b;
+    border-color: #e5e7eb;
+}
+
+.symbol-list {
+    max-height: 48vh;
+    overflow-y: auto;
+    border-top: 1px solid #27272a;
+}
+
+.symbol-row {
+    display: grid;
+    grid-template-columns: 38px 1fr auto 42px;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 18px;
+    border-bottom: 1px solid #292929;
+    cursor: pointer;
+}
+
+.symbol-row:hover {
+    background: #27272a;
+}
+
+.symbol-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #374151;
+    font-size: 14px;
+}
+
+.symbol-name {
+    font-weight: bold;
+}
+
+.symbol-description {
+    color: #a1a1aa;
+    font-size: 12px;
+    margin-top: 3px;
+}
+
+.symbol-exchange {
+    color: #a1a1aa;
+    font-size: 12px;
+    text-align: right;
+}
+
+.symbol-add {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 8px;
+    background: #27272a;
+    border: 1px solid #52525b;
+    font-size: 20px;
+}
+
+.symbol-add:hover {
+    background: #3f3f46;
+}
+
+.watchlist-section {
+    padding: 12px 18px 16px;
+    border-top: 1px solid #3f3f46;
+}
+
+.watchlist-title {
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.watchlist {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.watch-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 9px;
+    border-radius: 8px;
+    background: #27272a;
+    border: 1px solid #3f3f46;
+}
+
+.watch-item button {
+    padding: 0 3px;
+    background: transparent;
+    border: 0;
+}
+
+.symbol-empty {
+    padding: 30px 18px;
+    text-align: center;
+    color: #a1a1aa;
+}
 @media (max-width: 700px) {
     .mtf-table {
         font-size: 13px;
@@ -280,6 +472,37 @@ small {
 
 </div>
 
+<!-- SYMBOL SEARCH MODAL -->
+<div id="symbolModal" class="symbol-modal-backdrop" onclick="handleSymbolBackdropClick(event)">
+    <div class="symbol-modal" onclick="event.stopPropagation()">
+        <div class="symbol-modal-header">
+            <h2>ðŸ”Ž ThÃªm MÃ£</h2>
+            <button class="symbol-close" onclick="closeSymbolPicker()" type="button">Ã—</button>
+        </div>
+
+        <div class="symbol-search-wrap">
+            <input
+                id="symbolSearch"
+                class="symbol-search"
+                placeholder="MÃ£ giao dá»‹ch hoáº·c tÃªn tÃ i sáº£n..."
+                autocomplete="off"
+                oninput="renderSymbolList()"
+            >
+        </div>
+
+        <div id="symbolTabs" class="symbol-tabs">
+            <button class="symbol-tab active" data-category="ALL" onclick="selectSymbolCategory('ALL')" type="button">Táº¥t cáº£</button>
+            <button class="symbol-tab" data-category="CRYPTO" onclick="selectSymbolCategory('CRYPTO')" type="button">Tiá»n Ä‘iá»‡n tá»­</button>
+        </div>
+
+        <div id="symbolList" class="symbol-list"></div>
+
+        <div class="watchlist-section">
+            <div class="watchlist-title">â­ Danh sÃ¡ch theo dÃµi</div>
+            <div id="watchlist" class="watchlist"></div>
+        </div>
+    </div>
+</div>
 <div id="status" class="status">
     Sẵn sàng phân tích dữ liệu thị trường thật.
 </div>
@@ -805,6 +1028,150 @@ let latestMTFData = null;
 let selectedTradeTimeframe = "M1";
 
 
+/*
+=====================================================
+SYMBOL SEARCH / WATCHLIST
+=====================================================
+*/
+
+const SYMBOLS = [
+    {symbol:"BTCUSDT",name:"Bitcoin / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"â‚¿"},
+    {symbol:"ETHUSDT",name:"Ethereum / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"Îž"},
+    {symbol:"SOLUSDT",name:"Solana / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"S"},
+    {symbol:"BNBUSDT",name:"BNB / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"B"},
+    {symbol:"XRPUSDT",name:"XRP / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"X"},
+    {symbol:"DOGEUSDT",name:"Dogecoin / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"Ã"},
+    {symbol:"ADAUSDT",name:"Cardano / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"A"},
+    {symbol:"AVAXUSDT",name:"Avalanche / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"A"},
+    {symbol:"LINKUSDT",name:"Chainlink / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"L"},
+    {symbol:"DOTUSDT",name:"Polkadot / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"D"},
+    {symbol:"TRXUSDT",name:"TRON / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"T"},
+    {symbol:"LTCUSDT",name:"Litecoin / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"Å"},
+    {symbol:"BCHUSDT",name:"Bitcoin Cash / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"B"},
+    {symbol:"UNIUSDT",name:"Uniswap / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"U"},
+    {symbol:"ATOMUSDT",name:"Cosmos / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"A"},
+    {symbol:"NEARUSDT",name:"NEAR Protocol / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"N"},
+    {symbol:"APTUSDT",name:"Aptos / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"A"},
+    {symbol:"SUIUSDT",name:"Sui / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"S"},
+    {symbol:"PEPEUSDT",name:"Pepe / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"P"},
+    {symbol:"SHIBUSDT",name:"Shiba Inu / TetherUS",exchange:"Binance",category:"CRYPTO",icon:"S"}
+];
+
+let selectedSymbolCategory = "ALL";
+let watchlistSymbols = JSON.parse(localStorage.getItem("traderai_watchlist") || '["BTCUSDT"]');
+
+function openSymbolPicker() {
+    const modal = document.getElementById("symbolModal");
+    const search = document.getElementById("symbolSearch");
+    modal.classList.add("open");
+    search.value = "";
+    selectedSymbolCategory = "ALL";
+    updateSymbolTabs();
+    renderSymbolList();
+    renderWatchlist();
+    setTimeout(() => search.focus(), 50);
+}
+
+function closeSymbolPicker() {
+    document.getElementById("symbolModal").classList.remove("open");
+}
+
+function handleSymbolBackdropClick(event) {
+    if (event.target.id === "symbolModal") closeSymbolPicker();
+}
+
+function selectSymbolCategory(category) {
+    selectedSymbolCategory = category;
+    updateSymbolTabs();
+    renderSymbolList();
+}
+
+function updateSymbolTabs() {
+    document.querySelectorAll(".symbol-tab").forEach(tab => {
+        tab.classList.toggle("active", tab.dataset.category === selectedSymbolCategory);
+    });
+}
+
+function renderSymbolList() {
+    const list = document.getElementById("symbolList");
+    const query = document.getElementById("symbolSearch").value.trim().toLowerCase();
+
+    const filtered = SYMBOLS.filter(item => {
+        const categoryMatch = selectedSymbolCategory === "ALL" || item.category === selectedSymbolCategory;
+        const queryMatch = !query || item.symbol.toLowerCase().includes(query) || item.name.toLowerCase().includes(query);
+        return categoryMatch && queryMatch;
+    });
+
+    if (!filtered.length) {
+        list.innerHTML = '<div class="symbol-empty">KhÃ´ng tÃ¬m tháº¥y mÃ£ phÃ¹ há»£p.</div>';
+        return;
+    }
+
+    list.innerHTML = filtered.map(item => {
+        const isWatched = watchlistSymbols.includes(item.symbol);
+        return \`
+            <div class="symbol-row" onclick="selectSymbol('\${item.symbol}')">
+                <div class="symbol-icon">\${item.icon}</div>
+                <div>
+                    <div class="symbol-name">\${item.symbol}</div>
+                    <div class="symbol-description">\${item.name}</div>
+                </div>
+                <div class="symbol-exchange">\${item.exchange}</div>
+                <button class="symbol-add" type="button"
+                    title="\${isWatched ? "XÃ³a khá»i danh sÃ¡ch theo dÃµi" : "ThÃªm vÃ o danh sÃ¡ch theo dÃµi"}"
+                    onclick="event.stopPropagation(); toggleWatchlist('\${item.symbol}')"
+                >\${isWatched ? "â˜…" : "+"}</button>
+            </div>
+        \`;
+    }).join("");
+}
+
+function selectSymbol(symbol) {
+    const item = SYMBOLS.find(x => x.symbol === symbol);
+    if (!item) return;
+
+    document.getElementById("symbol").value = symbol;
+    document.getElementById("symbolPickerButton").innerHTML =
+        \`\${item.icon} \${item.symbol} <span style="color:#9ca3af;">âŒ„</span>\`;
+
+    closeSymbolPicker();
+    runLiveMTFAnalysis();
+}
+
+function toggleWatchlist(symbol) {
+    if (watchlistSymbols.includes(symbol)) {
+        watchlistSymbols = watchlistSymbols.filter(item => item !== symbol);
+    } else {
+        watchlistSymbols.push(symbol);
+    }
+
+    localStorage.setItem("traderai_watchlist", JSON.stringify(watchlistSymbols));
+    renderSymbolList();
+    renderWatchlist();
+}
+
+function renderWatchlist() {
+    const container = document.getElementById("watchlist");
+
+    if (!watchlistSymbols.length) {
+        container.innerHTML = '<span style="color:#a1a1aa;">ChÆ°a cÃ³ mÃ£ nÃ o.</span>';
+        return;
+    }
+
+    container.innerHTML = watchlistSymbols.map(symbol => {
+        const item = SYMBOLS.find(x => x.symbol === symbol);
+        if (!item) return "";
+
+        return \`
+            <span class="watch-item">
+                <button type="button" onclick="selectSymbol('\${item.symbol}')" title="PhÃ¢n tÃ­ch \${item.symbol}">
+                    \${item.icon} \${item.symbol}
+                </button>
+                <button type="button" onclick="event.stopPropagation(); toggleWatchlist('\${item.symbol}')" title="XÃ³a">Ã—</button>
+            </span>
+        \`;
+    }).join("");
+}
 /*
 =====================================================
 LIVE MTF
