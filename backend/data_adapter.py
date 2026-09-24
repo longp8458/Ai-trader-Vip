@@ -1,5 +1,3 @@
-# backend/data_adapter.py
-
 from __future__ import annotations
 
 from typing import Any
@@ -17,6 +15,11 @@ import requests
 
 BINANCE_BASE_URL = "https://data-api.binance.vision"
 
+YAHOO_BASE_URLS = [
+    "https://query1.finance.yahoo.com",
+    "https://query2.finance.yahoo.com",
+]
+
 TIMEFRAME_MAP = {
     "M1": "1m",
     "M5": "5m",
@@ -24,75 +27,96 @@ TIMEFRAME_MAP = {
     "H1": "1h",
     "H4": "4h",
     "D1": "1d",
-    "W1": "1w",
+    "W1": "1wk",
 }
 
 
-# TradingView symbol -> Yahoo proxy
-# Lưu ý: đây là nguồn proxy, không đảm bảo giá giống 100% TradingView.
+# ============================================================
+# TRADINGVIEW SYMBOL MAP
+# ============================================================
+
 TV_SYMBOL_MAP = {
+
     "XAUUSD": {
         "tv": "OANDA:XAUUSD",
         "provider": "YAHOO_PROXY",
         "ticker": "GC=F",
         "name": "Gold Futures",
+        "market_type": "commodity",
     },
+
     "EURUSD": {
         "tv": "OANDA:EURUSD",
         "provider": "YAHOO_PROXY",
         "ticker": "EURUSD=X",
         "name": "EUR/USD",
+        "market_type": "forex",
     },
+
     "GBPUSD": {
         "tv": "OANDA:GBPUSD",
         "provider": "YAHOO_PROXY",
         "ticker": "GBPUSD=X",
         "name": "GBP/USD",
+        "market_type": "forex",
     },
+
     "US30": {
         "tv": "CAPITALCOM:US30",
         "provider": "YAHOO_PROXY",
         "ticker": "^DJI",
         "name": "Dow Jones Industrial Average",
+        "market_type": "index",
     },
+
     "US500": {
         "tv": "CAPITALCOM:US500",
         "provider": "YAHOO_PROXY",
         "ticker": "^GSPC",
         "name": "S&P 500",
+        "market_type": "index",
     },
+
     "USDJPY": {
         "tv": "OANDA:USDJPY",
         "provider": "YAHOO_PROXY",
         "ticker": "JPY=X",
         "name": "USD/JPY",
+        "market_type": "forex",
     },
+
     "BTCUSD": {
         "tv": "COINBASE:BTCUSD",
         "provider": "YAHOO_PROXY",
         "ticker": "BTC-USD",
         "name": "Bitcoin USD",
+        "market_type": "crypto",
     },
+
     "ETHUSD": {
         "tv": "COINBASE:ETHUSD",
         "provider": "YAHOO_PROXY",
         "ticker": "ETH-USD",
         "name": "Ethereum USD",
+        "market_type": "crypto",
     },
+
     "USOIL": {
         "tv": "TVC:USOIL",
         "provider": "YAHOO_PROXY",
         "ticker": "CL=F",
         "name": "WTI Crude Oil Futures",
+        "market_type": "commodity",
     },
 }
 
 
 # ============================================================
-# BASIC HELPERS
+# HELPERS
 # ============================================================
 
 def _clean_symbol(symbol: str) -> str:
+
     if not isinstance(symbol, str):
         raise ValueError("Symbol phải là chuỗi.")
 
@@ -105,6 +129,7 @@ def _clean_symbol(symbol: str) -> str:
 
 
 def _clean_timeframe(timeframe: str) -> str:
+
     if not isinstance(timeframe, str):
         raise ValueError("Timeframe phải là chuỗi.")
 
@@ -113,13 +138,14 @@ def _clean_timeframe(timeframe: str) -> str:
     if timeframe not in TIMEFRAME_MAP:
         raise ValueError(
             f"Timeframe không hỗ trợ: {timeframe}. "
-            f"Hỗ trợ: {', '.join(TIMEFRAME_MAP.keys())}"
+            f"Hỗ trợ: {', '.join(TIMEFRAME_MAP)}"
         )
 
     return timeframe
 
 
-def _finite(value: Any) -> float | None:
+def _safe_float(value: Any) -> float | None:
+
     try:
         value = float(value)
 
@@ -136,7 +162,9 @@ def _finite(value: Any) -> float | None:
 # OHLCV VALIDATION
 # ============================================================
 
-def _validate_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
+def _validate_ohlcv(
+    df: pd.DataFrame,
+) -> pd.DataFrame:
 
     if df is None:
         raise ValueError("DataFrame không tồn tại.")
@@ -156,19 +184,18 @@ def _validate_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
     ]
 
     for column in required:
+
         if column not in df.columns:
             raise ValueError(
                 f"Thiếu cột OHLCV: {column}"
             )
 
-    # Timestamp
     df["timestamp"] = pd.to_datetime(
         df["timestamp"],
         errors="coerce",
         utc=True,
     )
 
-    # Numeric columns
     for column in [
         "open",
         "high",
@@ -176,31 +203,11 @@ def _validate_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
         "close",
         "volume",
     ]:
+
         df[column] = pd.to_numeric(
             df[column],
             errors="coerce",
         )
-
-    # Remove invalid rows
-    df = df.dropna(
-        subset=[
-            "timestamp",
-            "open",
-            "high",
-            "low",
-            "close",
-            "volume",
-        ]
-    )
-
-    # Remove infinity
-    numeric_columns = [
-        "open",
-        "high",
-        "low",
-        "close",
-        "volume",
-    ]
 
     df = df.replace(
         [np.inf, -np.inf],
@@ -208,10 +215,17 @@ def _validate_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     df = df.dropna(
-        subset=numeric_columns
+        subset=[
+            "timestamp",
+            "open",
+            "high",
+            "low",
+            "close",
+        ]
     )
 
-    # Giá phải hợp lệ
+    df["volume"] = df["volume"].fillna(0.0)
+
     df = df[
         (df["open"] > 0)
         & (df["high"] > 0)
@@ -220,7 +234,6 @@ def _validate_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
         & (df["volume"] >= 0)
     ]
 
-    # High / Low hợp lệ
     df = df[
         (df["high"] >= df["low"])
         & (df["high"] >= df["open"])
@@ -229,12 +242,10 @@ def _validate_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
         & (df["low"] <= df["close"])
     ]
 
-    # Sort
     df = df.sort_values(
         "timestamp"
     )
 
-    # Remove duplicate timestamps
     df = df.drop_duplicates(
         subset=["timestamp"],
         keep="last",
@@ -246,7 +257,7 @@ def _validate_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
 
     if df.empty:
         raise ValueError(
-            "Sau khi làm sạch không còn candle OHLCV hợp lệ."
+            "Không còn candle OHLCV hợp lệ."
         )
 
     return df
@@ -260,11 +271,14 @@ def _binance_to_dataframe(
     data: list[list[Any]],
 ) -> pd.DataFrame:
 
-    rows: list[dict[str, Any]] = []
+    rows = []
 
     for item in data:
 
-        if not isinstance(item, (list, tuple)):
+        if not isinstance(
+            item,
+            (list, tuple),
+        ):
             continue
 
         if len(item) < 6:
@@ -278,32 +292,28 @@ def _binance_to_dataframe(
                 utc=True,
             )
 
-            open_price = float(item[1])
-            high_price = float(item[2])
-            low_price = float(item[3])
-            close_price = float(item[4])
-            volume = float(item[5])
+            values = [
+                float(item[1]),
+                float(item[2]),
+                float(item[3]),
+                float(item[4]),
+                float(item[5]),
+            ]
 
             if not all(
                 math.isfinite(x)
-                for x in [
-                    open_price,
-                    high_price,
-                    low_price,
-                    close_price,
-                    volume,
-                ]
+                for x in values
             ):
                 continue
 
             rows.append(
                 {
                     "timestamp": timestamp,
-                    "open": open_price,
-                    "high": high_price,
-                    "low": low_price,
-                    "close": close_price,
-                    "volume": volume,
+                    "open": values[0],
+                    "high": values[1],
+                    "low": values[2],
+                    "close": values[3],
+                    "volume": values[4],
                 }
             )
 
@@ -316,43 +326,39 @@ def _binance_to_dataframe(
 
     if not rows:
         raise ValueError(
-            "Binance không trả về candle OHLCV hợp lệ."
+            "Binance không trả về OHLCV hợp lệ."
         )
 
-    df = pd.DataFrame(rows)
-
-    return _validate_ohlcv(df)
+    return _validate_ohlcv(
+        pd.DataFrame(rows)
+    )
 
 
 def fetch_binance_klines(
     symbol: str,
     timeframe: str,
     limit: int = 300,
-) -> list[list[Any]]:
+):
 
     symbol = _clean_symbol(symbol)
     timeframe = _clean_timeframe(timeframe)
 
-    interval = TIMEFRAME_MAP[timeframe]
+    interval = TIMEFRAME_MAP[
+        timeframe
+    ]
 
     limit = max(
         1,
         min(int(limit), 1000),
     )
 
-    url = (
-        f"{BINANCE_BASE_URL}/api/v3/klines"
-    )
-
-    params = {
-        "symbol": symbol,
-        "interval": interval,
-        "limit": limit,
-    }
-
     response = requests.get(
-        url,
-        params=params,
+        f"{BINANCE_BASE_URL}/api/v3/klines",
+        params={
+            "symbol": symbol,
+            "interval": interval,
+            "limit": limit,
+        },
         timeout=15,
         headers={
             "User-Agent": "NovaTradeAI/6.1",
@@ -365,12 +371,12 @@ def fetch_binance_klines(
 
     if not isinstance(data, list):
         raise ValueError(
-            "Binance trả về dữ liệu không hợp lệ."
+            "Binance trả dữ liệu không hợp lệ."
         )
 
     if not data:
         raise ValueError(
-            f"Binance không có dữ liệu cho {symbol} {timeframe}."
+            f"Không có dữ liệu {symbol} {timeframe}."
         )
 
     return data
@@ -388,27 +394,31 @@ def fetch_binance_dataframe(
         limit,
     )
 
-    return _binance_to_dataframe(data)
+    return _binance_to_dataframe(
+        data
+    )
 
 
 # ============================================================
-# YAHOO PROXY
+# YAHOO CONFIG
 # ============================================================
 
 def _yahoo_range(
     timeframe: str,
 ) -> tuple[str, str]:
 
-    timeframe = _clean_timeframe(timeframe)
+    timeframe = _clean_timeframe(
+        timeframe
+    )
 
     if timeframe == "M1":
         return "7d", "1m"
 
-    if timeframe in {
-        "M5",
-        "M15",
-    }:
-        return "60d", TIMEFRAME_MAP[timeframe]
+    if timeframe == "M5":
+        return "60d", "5m"
+
+    if timeframe == "M15":
+        return "60d", "15m"
 
     if timeframe == "H1":
         return "730d", "1h"
@@ -422,8 +432,14 @@ def _yahoo_range(
     if timeframe == "W1":
         return "max", "1wk"
 
-    return "60d", "1d"
+    raise ValueError(
+        f"Timeframe Yahoo không hỗ trợ: {timeframe}"
+    )
 
+
+# ============================================================
+# H4 RESAMPLE
+# ============================================================
 
 def _resample_h4(
     df: pd.DataFrame,
@@ -452,11 +468,93 @@ def _resample_h4(
         }
     )
 
-    result = result.dropna()
+    result = result.dropna(
+        subset=[
+            "open",
+            "high",
+            "low",
+            "close",
+        ]
+    )
 
     result = result.reset_index()
 
     return result
+
+
+# ============================================================
+# YAHOO FETCH
+# ============================================================
+
+def _fetch_yahoo_payload(
+    ticker: str,
+    period: str,
+    interval: str,
+) -> dict:
+
+    last_error = None
+
+    for base_url in YAHOO_BASE_URLS:
+
+        url = (
+            f"{base_url}/v8/finance/chart/"
+            f"{ticker}"
+        )
+
+        try:
+
+            response = requests.get(
+                url,
+                params={
+                    "range": period,
+                    "interval": interval,
+                    "includePrePost": "false",
+                    "events": "div,splits",
+                    "includeAdjustedClose": "true",
+                },
+                timeout=20,
+                headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 "
+                        "(Windows NT 10.0; Win64; x64)"
+                    ),
+                    "Accept": "application/json",
+                },
+            )
+
+            response.raise_for_status()
+
+            payload = response.json()
+
+            chart = payload.get(
+                "chart",
+                {},
+            )
+
+            if chart.get("error"):
+                raise ValueError(
+                    str(chart["error"])
+                )
+
+            results = chart.get(
+                "result"
+            )
+
+            if not results:
+                raise ValueError(
+                    f"Yahoo không có result cho {ticker}."
+                )
+
+            return results[0]
+
+        except Exception as exc:
+
+            last_error = exc
+
+    raise RuntimeError(
+        f"Yahoo không lấy được {ticker}: "
+        f"{last_error}"
+    )
 
 
 def fetch_yahoo_klines(
@@ -470,57 +568,22 @@ def fetch_yahoo_klines(
 
     if symbol not in TV_SYMBOL_MAP:
         raise ValueError(
-            f"{symbol} không có trong TradingView symbol map."
+            f"{symbol} không có trong TV_SYMBOL_MAP."
         )
 
-    ticker = TV_SYMBOL_MAP[symbol]["ticker"]
+    ticker = TV_SYMBOL_MAP[
+        symbol
+    ]["ticker"]
 
     period, interval = _yahoo_range(
         timeframe
     )
 
-    url = (
-        "https://query1.finance.yahoo.com"
-        "/v8/finance/chart/"
-        + ticker
+    result = _fetch_yahoo_payload(
+        ticker=ticker,
+        period=period,
+        interval=interval,
     )
-
-    params = {
-        "range": period,
-        "interval": interval,
-        "includePrePost": "false",
-        "events": "div,splits",
-        "includeAdjustedClose": "true",
-    }
-
-    response = requests.get(
-        url,
-        params=params,
-        timeout=20,
-        headers={
-            "User-Agent": "Mozilla/5.0",
-        },
-    )
-
-    response.raise_for_status()
-
-    payload = response.json()
-
-    chart = payload.get(
-        "chart",
-        {},
-    )
-
-    result = chart.get(
-        "result"
-    )
-
-    if not result:
-        raise ValueError(
-            f"Yahoo không trả dữ liệu cho {symbol}."
-        )
-
-    result = result[0]
 
     timestamps = result.get(
         "timestamp",
@@ -532,17 +595,17 @@ def fetch_yahoo_klines(
         {},
     )
 
-    quote_list = indicators.get(
+    quotes = indicators.get(
         "quote",
         [],
     )
 
-    if not quote_list:
+    if not quotes:
         raise ValueError(
-            f"Yahoo thiếu OHLCV cho {symbol}."
+            f"Yahoo thiếu OHLCV {symbol}."
         )
 
-    quote = quote_list[0]
+    quote = quotes[0]
 
     opens = quote.get(
         "open",
@@ -569,8 +632,6 @@ def fetch_yahoo_klines(
         [],
     )
 
-    rows = []
-
     length = min(
         len(timestamps),
         len(opens),
@@ -579,6 +640,8 @@ def fetch_yahoo_klines(
         len(closes),
         len(volumes),
     )
+
+    rows = []
 
     for i in range(length):
 
@@ -590,27 +653,33 @@ def fetch_yahoo_klines(
                 utc=True,
             )
 
-            open_price = float(
+            open_price = _safe_float(
                 opens[i]
             )
 
-            high_price = float(
+            high_price = _safe_float(
                 highs[i]
             )
 
-            low_price = float(
+            low_price = _safe_float(
                 lows[i]
             )
 
-            close_price = float(
+            close_price = _safe_float(
                 closes[i]
             )
 
-            volume = (
-                float(volumes[i])
-                if volumes[i] is not None
-                else 0.0
+            volume = _safe_float(
+                volumes[i]
             )
+
+            if (
+                open_price is None
+                or high_price is None
+                or low_price is None
+                or close_price is None
+            ):
+                continue
 
             rows.append(
                 {
@@ -619,7 +688,11 @@ def fetch_yahoo_klines(
                     "high": high_price,
                     "low": low_price,
                     "close": close_price,
-                    "volume": volume,
+                    "volume": (
+                        volume
+                        if volume is not None
+                        else 0.0
+                    ),
                 }
             )
 
@@ -632,22 +705,36 @@ def fetch_yahoo_klines(
 
     if not rows:
         raise ValueError(
-            f"Yahoo không có candle hợp lệ cho {symbol}."
+            f"Yahoo không có candle hợp lệ "
+            f"cho {symbol} {timeframe}."
         )
 
-    df = pd.DataFrame(rows)
-
-    df = _validate_ohlcv(df)
+    df = _validate_ohlcv(
+        pd.DataFrame(rows)
+    )
 
     if timeframe == "H4":
-        df = _resample_h4(df)
 
-    df = _validate_ohlcv(df)
+        df = _resample_h4(
+            df
+        )
 
-    # Lấy limit candle cuối
-    if len(df) > limit:
-        df = df.tail(limit).reset_index(
-            drop=True
+        df = _validate_ohlcv(
+            df
+        )
+
+    if len(df) > int(limit):
+
+        df = (
+            df.tail(int(limit))
+            .reset_index(drop=True)
+        )
+
+    if len(df) < 10:
+
+        raise ValueError(
+            f"{symbol} {timeframe} chỉ có "
+            f"{len(df)} candle."
         )
 
     return df
@@ -661,13 +748,15 @@ def is_tradingview_symbol(
     symbol: str,
 ) -> bool:
 
-    symbol = _clean_symbol(symbol)
+    symbol = _clean_symbol(
+        symbol
+    )
 
     return symbol in TV_SYMBOL_MAP
 
 
 # ============================================================
-# MARKET DATA
+# MAIN MARKET DATA ROUTER
 # ============================================================
 
 def fetch_market_klines(
@@ -675,10 +764,12 @@ def fetch_market_klines(
     timeframe: str,
     limit: int = 300,
 ):
-    symbol = _clean_symbol(symbol)
-    timeframe = _clean_timeframe(timeframe)
 
-    if is_tradingview_symbol(symbol):
+    symbol = _clean_symbol(symbol)
+
+    if is_tradingview_symbol(
+        symbol
+    ):
 
         return fetch_yahoo_klines(
             symbol,
@@ -702,61 +793,114 @@ def fetch_market_dataframe(
     symbol = _clean_symbol(symbol)
     timeframe = _clean_timeframe(timeframe)
 
-    if is_tradingview_symbol(symbol):
+    if is_tradingview_symbol(
+        symbol
+    ):
 
-        df = fetch_yahoo_klines(
+        return fetch_yahoo_klines(
             symbol=symbol,
             timeframe=timeframe,
             limit=limit,
         )
 
-    else:
+    data = fetch_binance_klines(
+        symbol=symbol,
+        timeframe=timeframe,
+        limit=limit,
+    )
 
-        # QUAN TRỌNG:
-        # Binance trả list OHLCV dạng raw.
-        # Không được dùng pd.DataFrame(data) trực tiếp.
-        #
-        # Phải chuyển qua _binance_to_dataframe()
-        # để tạo timestamp/open/high/low/close/volume.
-
-        data = fetch_binance_klines(
-            symbol=symbol,
-            timeframe=timeframe,
-            limit=limit,
-        )
-
-        df = _binance_to_dataframe(
-            data
-        )
-
-    return _validate_ohlcv(df)
+    return _binance_to_dataframe(
+        data
+    )
 
 
 # ============================================================
-# SYMBOL INFO
+# QUOTE
+# ============================================================
+
+def get_latest_quote(
+    symbol: str,
+) -> dict[str, Any]:
+
+    symbol = _clean_symbol(
+        symbol
+    )
+
+    df = fetch_market_dataframe(
+        symbol=symbol,
+        timeframe="M1",
+        limit=2,
+    )
+
+    if df.empty:
+        raise ValueError(
+            f"Không có quote cho {symbol}."
+        )
+
+    last = df.iloc[-1]
+
+    previous = (
+        df.iloc[-2]
+        if len(df) >= 2
+        else last
+    )
+
+    price = float(
+        last["close"]
+    )
+
+    previous_price = float(
+        previous["close"]
+    )
+
+    change = None
+
+    if previous_price != 0:
+
+        change = (
+            (price - previous_price)
+            / previous_price
+        ) * 100.0
+
+    return {
+        "symbol": symbol,
+        "price": price,
+        "previous": previous_price,
+        "change_percent": change,
+        "timestamp": (
+            last["timestamp"].isoformat()
+        ),
+        "source": get_symbol_info(
+            symbol
+        ),
+        "analysis_only": True,
+    }
+
+
+# ============================================================
+# SYMBOL CHECK
 # ============================================================
 
 def check_binance_symbol(
     symbol: str,
 ) -> bool:
 
-    symbol = _clean_symbol(symbol)
+    symbol = _clean_symbol(
+        symbol
+    )
 
     try:
 
-        url = (
-            f"{BINANCE_BASE_URL}"
-            "/api/v3/exchangeInfo"
-        )
-
         response = requests.get(
-            url,
+            f"{BINANCE_BASE_URL}"
+            "/api/v3/exchangeInfo",
             params={
-                "symbol": symbol,
+                "symbol": symbol
             },
             timeout=10,
             headers={
-                "User-Agent": "NovaTradeAI/6.1",
+                "User-Agent":
+                    "NovaTradeAI/6.1",
             },
         )
 
@@ -765,22 +909,28 @@ def check_binance_symbol(
 
         data = response.json()
 
-        symbols = data.get(
-            "symbols",
-            [],
+        return bool(
+            data.get(
+                "symbols",
+                [],
+            )
         )
-
-        return bool(symbols)
 
     except Exception:
         return False
 
 
+# ============================================================
+# SYMBOL INFO
+# ============================================================
+
 def get_symbol_info(
     symbol: str,
 ) -> dict[str, Any]:
 
-    symbol = _clean_symbol(symbol)
+    symbol = _clean_symbol(
+        symbol
+    )
 
     if symbol in TV_SYMBOL_MAP:
 
@@ -794,7 +944,10 @@ def get_symbol_info(
             "provider": item["provider"],
             "ticker": item["ticker"],
             "name": item["name"],
-            "market_type": "tradingview_proxy",
+            "market_type": item[
+                "market_type"
+            ],
+            "proxy": True,
             "analysis_only": True,
         }
 
@@ -805,6 +958,7 @@ def get_symbol_info(
         "ticker": symbol,
         "name": symbol,
         "market_type": "crypto",
+        "proxy": False,
         "analysis_only": True,
     }
 
@@ -827,7 +981,7 @@ def get_market_data(
 
 
 # ============================================================
-# SIMPLE CACHE
+# CACHE
 # ============================================================
 
 _DATA_CACHE: dict[
@@ -860,8 +1014,10 @@ def fetch_market_dataframe_cached(
 
         cached_time, cached_df = cached
 
-        if now - cached_time <= CACHE_SECONDS:
-
+        if (
+            now - cached_time
+            <= CACHE_SECONDS
+        ):
             return cached_df.copy()
 
     df = fetch_market_dataframe(
