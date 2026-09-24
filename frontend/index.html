@@ -85,7 +85,11 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const API_URL="http://127.0.0.1:8001";
+const LOCAL_API_URL="http://127.0.0.1:8001";
+const RENDER_API_URL="https://traderai-v6.onrender.com";
+const IS_LOCAL_HOST=["localhost","127.0.0.1","::1"].includes(location.hostname);
+const IS_GITHUB_PAGES=location.hostname.endsWith(".github.io");
+const API_URL=IS_LOCAL_HOST?LOCAL_API_URL:RENDER_API_URL;
 const TV={XAUUSD:"OANDA:XAUUSD",EURUSD:"OANDA:EURUSD",GBPUSD:"OANDA:GBPUSD",US30:"CAPITALCOM:US30",US500:"CAPITALCOM:US500",USDJPY:"OANDA:USDJPY",BTCUSD:"COINBASE:BTCUSD",ETHUSD:"COINBASE:ETHUSD",USOIL:"TVC:USOIL"};
 const BN=["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","AVAXUSDT","LINKUSDT","DOTUSDT","TRXUSDT","LTCUSDT","BCHUSDT","UNIUSDT","ATOMUSDT","NEARUSDT","APTUSDT","SUIUSDT","PEPEUSDT","SHIBUSDT"];
 const ALL=[...Object.keys(TV).map(s=>({s,src:"TV"})),...BN.map(s=>({s,src:"BN"}))];
