@@ -131,7 +131,7 @@ function recordMTFHistory(d){
     signalHistory.unshift({symbol:selected.s,tf,signal,time:now,entry:entry??null,sl:sl??null,tp1:tp1??null,tp2:tp2??null,tp3:tp3??null,current});
   }); saveHistory();
 }
-async function refreshHistoryPrices(){for(const r of signalHistory){if(r.symbol===selected.s&&selected.src==="BN"){try{const dd=await apiJSON(`/api/market-data?symbol=${encodeURIComponent(r.symbol)}&limit=2`,{},9000);const a=dd.data||dd.klines||dd.candles||dd;if(Array.isArray(a)&&a.length)r.current=Number(a[a.length-1].close??a[a.length-1][4])}catch(e){}}}saveHistory()}
+async function refreshHistoryPrices(){for(const r of signalHistory){if(r.symbol===selected.s&&selected.src==="BN"){try{const dd=await apiJSON(`/api/market-data?symbol=${encodeURIComponent(r.symbol)}&limit=300`,{},9000);const a=dd.data||dd.klines||dd.candles||dd;if(Array.isArray(a)&&a.length)r.current=Number(a[a.length-1].close??a[a.length-1][4])}catch(e){}}}saveHistory()}
 
 const $=x=>document.getElementById(x);
 if($("apiUrlLabel")) $("apiUrlLabel").textContent=API_URL; if($("runtimeMode")) $("runtimeMode").textContent=`${API_MODE} → ${API_URL}`;
