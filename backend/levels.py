@@ -1,609 +1,450 @@
-# backend/levels.py
-
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
+import math
 
 import numpy as np
 import pandas as pd
 
 
-# ============================================================
-# CONFIG
-# ============================================================
-
-SWING_LOOKBACK = 3
-RECENT_WINDOW = 50
-
-MAX_LEVELS = 8
-
-DEFAULT_TOLERANCE_PCT = 0.005
-
-
-# ============================================================
-# SAFE HELPERS
-# ============================================================
-
-def _safe_float(
-    value: Any,
-    default: float = 0.0,
-) -> float:
-
+def _f(value: Any, default: float | None = None):
     try:
-        value = float(value)
-
-        if np.isfinite(value):
-            return value
-
+        x = float(value)
+        if math.isfinite(x):
+            return x
     except (TypeError, ValueError):
         pass
 
     return default
 
 
-def _prepare_dataframe(
-    data: pd.DataFrame,
-) -> pd.DataFrame:
+def _prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    data = df.copy()
 
-    if data is None:
-        return pd.DataFrame()
-
-    if not isinstance(data, pd.DataFrame):
-        return pd.DataFrame(data)
-
-    df = data.copy()
-
-    df.columns = [
-        str(column).strip().lower()
-        for column in df.columns
+    data.columns = [
+        str(column).lower()
+        for column in data.columns
     ]
 
-    required = [
+    for column in [
+        "open",
         "high",
         "low",
         "close",
-    ]
+        "volume",
+    ]:
+        if column not in data.columns:
+            data[column] = 0.0
 
-    if any(
-        column not in df.columns
-        for column in required
-    ):
-        return pd.DataFrame()
-
-    for column in required:
-
-        df[column] = pd.to_numeric(
-            df[column],
+        data[column] = pd.to_numeric(
+            data[column],
             errors="coerce",
         )
 
-    df = df.replace(
+    data = data.replace(
         [np.inf, -np.inf],
         np.nan,
     )
 
-    df = df.dropna(
-        subset=required
+    data = data.dropna(
+        subset=[
+            "high",
+            "low",
+            "close",
+        ]
     )
 
-    return df.reset_index(drop=True)
+    return data.reset_index(drop=True)
 
 
-# ============================================================
-# SWING DETECTION
-# ============================================================
-
-def _find_swings(
+def _atr(
     df: pd.DataFrame,
-    lookback: int = SWING_LOOKBACK,
-) -> Dict[str, List[float]]:
+    period: int = 14,
+) -> float:
 
-    highs: List[float] = []
-    lows: List[float] = []
-
-    if len(df) < (
-        lookback * 2 + 1
-    ):
-        return {
-            "highs": highs,
-            "lows": lows,
-        }
-
-    high_values = df["high"].to_numpy(
-        dtype=float
+    high = pd.to_numeric(
+        df["high"],
+        errors="coerce",
     )
 
-    low_values = df["low"].to_numpy(
-        dtype=float
+    low = pd.to_numeric(
+        df["low"],
+        errors="coerce",
     )
 
-    for i in range(
-        lookback,
-        len(df) - lookback,
-    ):
+    close = pd.to_numeric(
+        df["close"],
+        errors="coerce",
+    )
 
-        current_high = high_values[i]
-        current_low = low_values[i]
+    previous_close = close.shift(1)
 
-        if not (
-            np.isfinite(current_high)
-            and np.isfinite(current_low)
-        ):
+    true_range = pd.concat(
+        [
+            high - low,
+            (high - previous_close).abs(),
+            (low - previous_close).abs(),
+        ],
+        axis=1,
+    ).max(axis=1)
+
+    atr = (
+        true_range
+        .rolling(
+            period,
+            min_periods=period,
+        )
+        .mean()
+        .iloc[-1]
+    )
+
+    value = _f(atr)
+
+    if value is not None and value > 0:
+        return value
+
+    price = _f(
+        close.iloc[-1],
+        1.0,
+    )
+
+    return max(
+        price * 0.005,
+        1e-9,
+    )
+
+
+def _cluster(
+    values: list[float],
+    tolerance: float,
+) -> list[dict[str, Any]]:
+
+    valid_values = sorted(
+        [
+            float(value)
+            for value in values
+            if _f(value) is not None
+        ]
+    )
+
+    if not valid_values:
+        return []
+
+    groups: list[dict[str, Any]] = []
+
+    for value in valid_values:
+
+        if not groups:
+            groups.append(
+                {
+                    "price": value,
+                    "touches": 1,
+                }
+            )
             continue
 
-        left_high = high_values[
-            i - lookback:i
-        ]
+        group = groups[-1]
 
-        right_high = high_values[
-            i + 1:i + lookback + 1
-        ]
+        if abs(
+            value - group["price"]
+        ) > tolerance:
 
-        left_low = low_values[
-            i - lookback:i
-        ]
-
-        right_low = low_values[
-            i + 1:i + lookback + 1
-        ]
-
-        if (
-            current_high
-            > np.max(left_high)
-            and current_high
-            >= np.max(right_high)
-        ):
-            highs.append(
-                _safe_float(current_high)
+            groups.append(
+                {
+                    "price": value,
+                    "touches": 1,
+                }
             )
 
-        if (
-            current_low
-            < np.min(left_low)
-            and current_low
-            <= np.min(right_low)
-        ):
-            lows.append(
-                _safe_float(current_low)
+        else:
+
+            old_touches = group["touches"]
+
+            group["price"] = (
+                (
+                    group["price"]
+                    * old_touches
+                )
+                + value
+            ) / (
+                old_touches + 1
             )
 
-    return {
-        "highs": highs,
-        "lows": lows,
+            group["touches"] = (
+                old_touches + 1
+            )
+
+    return groups
+
+
+def calculate_levels(
+    df: pd.DataFrame,
+) -> dict[str, Any]:
+
+    data = _prepare_dataframe(df)
+
+    empty_result = {
+        "price": None,
+        "atr": None,
+        "support": [],
+        "resistance": [],
+        "zones": [],
+        "fibonacci": [],
+        "nearest_support": None,
+        "nearest_resistance": None,
+        "distance_to_support_atr": None,
+        "distance_to_resistance_atr": None,
+        "range_high": None,
+        "range_low": None,
     }
 
+    if len(data) < 30:
+        return empty_result
 
-# ============================================================
-# LEVEL CLUSTERING
-# ============================================================
+    price = _f(
+        data["close"].iloc[-1]
+    )
 
-def _cluster_levels(
-    prices: List[float],
-    tolerance: float,
-) -> List[Dict[str, Any]]:
+    if price is None:
+        return empty_result
 
-    if not prices:
-        return []
+    atr = _atr(data)
 
-    valid_prices = [
-        _safe_float(price)
-        for price in prices
-        if _safe_float(price) > 0
-    ]
+    lookback = min(
+        len(data),
+        200,
+    )
 
-    if not valid_prices:
-        return []
+    x = (
+        data
+        .tail(lookback)
+        .reset_index(drop=True)
+    )
 
-    valid_prices.sort()
+    swing_highs: list[float] = []
+    swing_lows: list[float] = []
 
-    clusters: List[List[float]] = []
+    for i in range(
+        2,
+        len(x) - 2,
+    ):
 
-    for price in valid_prices:
-
-        placed = False
-
-        for cluster in clusters:
-
-            center = (
-                sum(cluster)
-                / len(cluster)
-            )
-
-            if abs(
-                price - center
-            ) <= tolerance:
-
-                cluster.append(price)
-                placed = True
-                break
-
-        if not placed:
-            clusters.append(
-                [price]
-            )
-
-    levels: List[Dict[str, Any]] = []
-
-    for cluster in clusters:
-
-        center = (
-            sum(cluster)
-            / len(cluster)
+        high = _f(
+            x["high"].iloc[i]
         )
 
-        strength = len(cluster)
+        low = _f(
+            x["low"].iloc[i]
+        )
 
-        levels.append(
+        if high is None or low is None:
+            continue
+
+        local_high = float(
+            x["high"]
+            .iloc[i - 2:i + 3]
+            .max()
+        )
+
+        local_low = float(
+            x["low"]
+            .iloc[i - 2:i + 3]
+            .min()
+        )
+
+        if high >= local_high:
+            swing_highs.append(high)
+
+        if low <= local_low:
+            swing_lows.append(low)
+
+    tolerance = max(
+        atr * 0.45,
+        price * 0.0015,
+    )
+
+    resistance_clusters = _cluster(
+        swing_highs,
+        tolerance,
+    )
+
+    support_clusters = _cluster(
+        swing_lows,
+        tolerance,
+    )
+
+    resistance = sorted(
+        [
+            group
+            for group in resistance_clusters
+            if group["price"] > price
+        ],
+        key=lambda group: group["price"],
+    )[:5]
+
+    support = sorted(
+        [
+            group
+            for group in support_clusters
+            if group["price"] < price
+        ],
+        key=lambda group: group["price"],
+        reverse=True,
+    )[:5]
+
+    range_high = _f(
+        x["high"].max()
+    )
+
+    range_low = _f(
+        x["low"].min()
+    )
+
+    fibonacci = []
+
+    if (
+        range_high is not None
+        and range_low is not None
+        and range_high > range_low
+    ):
+
+        price_range = (
+            range_high - range_low
+        )
+
+        for ratio in [
+            0.236,
+            0.382,
+            0.500,
+            0.618,
+            0.786,
+        ]:
+
+            fibonacci.append(
+                {
+                    "ratio": ratio,
+                    "price": (
+                        range_high
+                        - price_range * ratio
+                    ),
+                }
+            )
+
+    zones = []
+
+    for group in support:
+
+        zone_price = group["price"]
+
+        strength = min(
+            100,
+            40 + group["touches"] * 12,
+        )
+
+        zones.append(
             {
-                "price": round(
-                    center,
-                    8,
+                "type": "SUPPORT",
+                "low": (
+                    zone_price
+                    - tolerance
                 ),
-                "touches": strength,
+                "high": (
+                    zone_price
+                    + tolerance
+                ),
+                "price": zone_price,
+                "touches": group["touches"],
                 "strength": strength,
             }
         )
 
-    levels.sort(
-        key=lambda x: (
-            x["strength"],
-            x["price"],
-        ),
-        reverse=True,
+    for group in resistance:
+
+        zone_price = group["price"]
+
+        strength = min(
+            100,
+            40 + group["touches"] * 12,
+        )
+
+        zones.append(
+            {
+                "type": "RESISTANCE",
+                "low": (
+                    zone_price
+                    - tolerance
+                ),
+                "high": (
+                    zone_price
+                    + tolerance
+                ),
+                "price": zone_price,
+                "touches": group["touches"],
+                "strength": strength,
+            }
+        )
+
+    support_zones = [
+        zone
+        for zone in zones
+        if zone["type"] == "SUPPORT"
+    ]
+
+    resistance_zones = [
+        zone
+        for zone in zones
+        if zone["type"] == "RESISTANCE"
+    ]
+
+    nearest_support = max(
+        support_zones,
+        key=lambda zone: zone["price"],
+        default=None,
     )
 
-    return levels
+    nearest_resistance = min(
+        resistance_zones,
+        key=lambda zone: zone["price"],
+        default=None,
+    )
 
+    def distance_in_atr(zone):
 
-# ============================================================
-# LEVEL DISTANCE
-# ============================================================
+        if zone is None:
+            return None
 
-def _distance_pct(
-    price: float,
-    level: float,
-) -> float:
+        return (
+            abs(
+                price - zone["price"]
+            )
+            / max(
+                atr,
+                1e-9,
+            )
+        )
 
-    if price <= 0:
-        return 0.0
-
-    return abs(
-        price - level
-    ) / price * 100.0
-
-
-# ============================================================
-# MAIN LEVEL ANALYZER
-# ============================================================
-
-def detect_levels(
-    data: pd.DataFrame,
-) -> Dict[str, Any]:
-
-    neutral_result = {
-        "support": None,
-        "resistance": None,
-
-        "supports": [],
-        "resistances": [],
-
-        "liquidity_highs": [],
-        "liquidity_lows": [],
-
-        "nearest_support": None,
-        "nearest_resistance": None,
-
-        "support_distance_pct": 0.0,
-        "resistance_distance_pct": 0.0,
-
-        "price": 0.0,
-
-        "analysis_only": True,
+    return {
+        "price": price,
+        "atr": atr,
+        "support": support,
+        "resistance": resistance,
+        "zones": zones,
+        "fibonacci": fibonacci,
+        "nearest_support": nearest_support,
+        "nearest_resistance": nearest_resistance,
+        "distance_to_support_atr": distance_in_atr(
+            nearest_support
+        ),
+        "distance_to_resistance_atr": distance_in_atr(
+            nearest_resistance
+        ),
+        "range_high": range_high,
+        "range_low": range_low,
     }
 
-    try:
 
-        df = _prepare_dataframe(data)
+def detect_levels(
+    df: pd.DataFrame,
+) -> dict[str, Any]:
 
-        if len(df) < 20:
-            return neutral_result
-
-        current_price = _safe_float(
-            df["close"].iloc[-1]
-        )
-
-        if current_price <= 0:
-            return neutral_result
-
-        # ----------------------------------------------------
-        # Dynamic tolerance
-        # ----------------------------------------------------
-
-        tolerance = (
-            current_price
-            * DEFAULT_TOLERANCE_PCT
-        )
-
-        # ----------------------------------------------------
-        # Swings
-        # ----------------------------------------------------
-
-        swings = _find_swings(
-            df,
-            SWING_LOOKBACK,
-        )
-
-        swing_highs = swings["highs"]
-        swing_lows = swings["lows"]
-
-        # ----------------------------------------------------
-        # Recent extreme levels
-        # ----------------------------------------------------
-
-        recent = df.tail(
-            RECENT_WINDOW
-        )
-
-        recent_high = _safe_float(
-            recent["high"].max()
-        )
-
-        recent_low = _safe_float(
-            recent["low"].min()
-        )
-
-        high_candidates = (
-            swing_highs
-            + [recent_high]
-        )
-
-        low_candidates = (
-            swing_lows
-            + [recent_low]
-        )
-
-        # ----------------------------------------------------
-        # Cluster
-        # ----------------------------------------------------
-
-        resistance_levels = (
-            _cluster_levels(
-                high_candidates,
-                tolerance,
-            )
-        )
-
-        support_levels = (
-            _cluster_levels(
-                low_candidates,
-                tolerance,
-            )
-        )
-
-        # ----------------------------------------------------
-        # Split levels around current price
-        # ----------------------------------------------------
-
-        resistances = [
-            level
-            for level in resistance_levels
-            if level["price"]
-            >= current_price
-        ]
-
-        supports = [
-            level
-            for level in support_levels
-            if level["price"]
-            <= current_price
-        ]
-
-        # ----------------------------------------------------
-        # Nearest support
-        # ----------------------------------------------------
-
-        supports.sort(
-            key=lambda x: (
-                current_price
-                - x["price"]
-            )
-        )
-
-        resistances.sort(
-            key=lambda x: (
-                x["price"]
-                - current_price
-            )
-        )
-
-        nearest_support = (
-            supports[0]
-            if supports
-            else None
-        )
-
-        nearest_resistance = (
-            resistances[0]
-            if resistances
-            else None
-        )
-
-        # ----------------------------------------------------
-        # Liquidity pools
-        # ----------------------------------------------------
-
-        # Liquidity above price:
-        # recent/swing highs.
-
-        liquidity_highs = sorted(
-            [
-                price
-                for price in high_candidates
-                if price > current_price
-            ]
-        )
-
-        # Liquidity below price:
-        # recent/swing lows.
-
-        liquidity_lows = sorted(
-            [
-                price
-                for price in low_candidates
-                if price < current_price
-            ],
-            reverse=True,
-        )
-
-        # Remove duplicates within tolerance
-        def _deduplicate(
-            values: List[float],
-        ) -> List[float]:
-
-            result: List[float] = []
-
-            for value in values:
-
-                if not result:
-
-                    result.append(value)
-                    continue
-
-                if abs(
-                    value
-                    - result[-1]
-                ) > tolerance:
-
-                    result.append(value)
-
-            return result
-
-        liquidity_highs = _deduplicate(
-            liquidity_highs
-        )[:MAX_LEVELS]
-
-        liquidity_lows = _deduplicate(
-            liquidity_lows
-        )[:MAX_LEVELS]
-
-        # ----------------------------------------------------
-        # Distances
-        # ----------------------------------------------------
-
-        support_distance_pct = 0.0
-
-        if nearest_support:
-
-            support_distance_pct = (
-                _distance_pct(
-                    current_price,
-                    nearest_support["price"],
-                )
-            )
-
-        resistance_distance_pct = 0.0
-
-        if nearest_resistance:
-
-            resistance_distance_pct = (
-                _distance_pct(
-                    current_price,
-                    nearest_resistance["price"],
-                )
-            )
-
-        # ----------------------------------------------------
-        # Output levels
-        # ----------------------------------------------------
-
-        supports = supports[:MAX_LEVELS]
-        resistances = resistances[:MAX_LEVELS]
-
-        return {
-            "support": (
-                nearest_support["price"]
-                if nearest_support
-                else None
-            ),
-
-            "resistance": (
-                nearest_resistance["price"]
-                if nearest_resistance
-                else None
-            ),
-
-            "supports": supports,
-
-            "resistances": resistances,
-
-            "liquidity_highs": [
-                round(
-                    price,
-                    8,
-                )
-                for price
-                in liquidity_highs
-            ],
-
-            "liquidity_lows": [
-                round(
-                    price,
-                    8,
-                )
-                for price
-                in liquidity_lows
-            ],
-
-            "nearest_support": (
-                nearest_support
-            ),
-
-            "nearest_resistance": (
-                nearest_resistance
-            ),
-
-            "support_distance_pct": round(
-                support_distance_pct,
-                4,
-            ),
-
-            "resistance_distance_pct": round(
-                resistance_distance_pct,
-                4,
-            ),
-
-            "price": round(
-                current_price,
-                8,
-            ),
-
-            "analysis_only": True,
-        }
-
-    except Exception:
-        return neutral_result
-
-
-# ============================================================
-# COMPATIBILITY ALIASES
-# ============================================================
-
-def analyze_levels(
-    data: pd.DataFrame,
-) -> Dict[str, Any]:
-
-    return detect_levels(data)
-
-
-def get_support_resistance(
-    data: pd.DataFrame,
-) -> Dict[str, Any]:
-
-    return detect_levels(data)
-
-
-__all__ = [
-    "detect_levels",
-    "analyze_levels",
-    "get_support_resistance",
-]
+    return calculate_levels(df)

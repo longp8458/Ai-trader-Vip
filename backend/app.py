@@ -1,114 +1,89 @@
-# backend/app.py
-
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any
-
 import math
+from concurrent.futures import (
+    ThreadPoolExecutor,
+    as_completed,
+)
+from typing import Any, List
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+import numpy as np
+import pandas as pd
 
-from .config import (
-    APP_NAME,
-    VERSION,
-    MODE,
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Query,
+)
+
+from fastapi.middleware.cors import (
+    CORSMiddleware,
+)
+
+from pydantic import (
+    BaseModel,
+    Field,
+)
+
+from backend.config import (
+    ASSETS,
     TIMEFRAMES,
 )
 
-from .analyzer import analyze_market
-
-from .data_adapter import (
+from backend.data_adapter import (
     fetch_market_dataframe,
     fetch_market_klines,
-    fetch_binance_dataframe,
     check_binance_symbol,
     get_symbol_info,
     is_tradingview_symbol,
 )
 
-from .mtf import calculate_mtf_consensus
+from backend.analyzer import (
+    analyze_market,
+)
+
+from backend.mtf import (
+    calculate_mtf_consensus,
+)
+
+from backend.history import (
+    HISTORY_LIMIT,
+    clear_history,
+    get_history,
+    get_stats,
+    record_signal,
+    refresh_history,
+)
+
+from backend.v7_engine import (
+    enrich,
+    ENGINE_VERSION,
+)
+
+from backend.news import (
+    fetch_news,
+)
 
 
-# ============================================================
-# APP
-# ============================================================
+APP_NAME = "TraderAI V7 High-Conviction"
+VERSION = "7.0.0"
+MODE = "analysis_only"
+
 
 app = FastAPI(
     title=APP_NAME,
     version=VERSION,
-    description=(
-        "NovaTrade AI V6 - "
-        "Market analysis only. "
-        "No automatic order execution."
-    ),
 )
 
-
-# ============================================================
-# CORS
-# ============================================================
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-# ============================================================
-# CONSTANTS
-# ============================================================
-
-ANALYSIS_ONLY = True
-
-
-# ============================================================
-# SAFE JSON
-# ============================================================
-
-def _json_safe(
-    value: Any,
-) -> Any:
-
-    if isinstance(value, dict):
-
-        return {
-            str(key): _json_safe(item)
-            for key, item in value.items()
-        }
-
-    if isinstance(value, list):
-
-        return [
-            _json_safe(item)
-            for item in value
-        ]
-
-    if isinstance(value, tuple):
-
-        return [
-            _json_safe(item)
-            for item in value
-        ]
-
-    if isinstance(value, float):
-
-        if math.isfinite(value):
-            return value
-
-        return None
-
-    return value
-
-
-# ============================================================
-# MODELS
-# ============================================================
 
 class Candle(BaseModel):
 
@@ -124,213 +99,629 @@ class Candle(BaseModel):
 
 class AnalyzeRequest(BaseModel):
 
-    symbol: str = "BTCUSDT"
-
-    timeframe: str = "M15"
-
-    limit: int = Field(
-        default=300,
-        ge=220,
-        le=1000,
-    )
-
-    candles: list[Candle] = Field(
-        min_length=220,
+    candles: List[Candle] = Field(
+        min_length=220
     )
 
 
-class MTFRequest(BaseModel):
+def json_safe(value):
 
-    symbol: str = "BTCUSDT"
+    if value is None:
+        return None
 
-    timeframes: list[str] = Field(
-        default_factory=lambda: list(TIMEFRAMES)
+    if isinstance(value, dict):
+
+        return {
+            str(key): json_safe(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(
+        value,
+        (list, tuple),
+    ):
+
+        return [
+            json_safe(item)
+            for item in value
+        ]
+
+    if isinstance(
+        value,
+        np.ndarray,
+    ):
+
+        return [
+            json_safe(item)
+            for item in value.tolist()
+        ]
+
+    if isinstance(
+        value,
+        np.generic,
+    ):
+
+        value = value.item()
+
+    if isinstance(
+        value,
+        float,
+    ):
+
+        if math.isfinite(value):
+            return value
+
+        return None
+
+    if isinstance(
+        value,
+        pd.Timestamp,
+    ):
+
+        return value.isoformat()
+
+    return value
+
+
+def validate_dataframe(
+    candles,
+):
+
+    df = pd.DataFrame(
+        [
+            candle.model_dump()
+            for candle in candles
+        ]
     )
 
-    limit: int = Field(
-        default=300,
-        ge=220,
-        le=1000,
+    for column in [
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+    ]:
+
+        df[column] = pd.to_numeric(
+            df[column],
+            errors="coerce",
+        )
+
+    df = (
+        df
+        .replace(
+            [
+                np.inf,
+                -np.inf,
+            ],
+            np.nan,
+        )
+        .dropna(
+            subset=[
+                "open",
+                "high",
+                "low",
+                "close",
+            ]
+        )
+        .reset_index(drop=True)
     )
 
+    if len(df) < 220:
 
-# ============================================================
-# ROOT
-# ============================================================
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Cần ít nhất 220 candle "
+                "hợp lệ."
+            ),
+        )
+
+    return df
+
+
+def analyze_one(
+    symbol,
+    timeframe,
+    limit,
+    include_news=False,
+):
+
+    df = fetch_market_dataframe(
+        symbol,
+        timeframe,
+        limit,
+    )
+
+    base_analysis = analyze_market(
+        df
+    )
+
+    if include_news:
+
+        news = fetch_news(
+            symbol,
+            8,
+        )
+
+    else:
+
+        news = {
+            "items": [],
+            "sentiment_score": 0.0,
+        }
+
+    analysis = enrich(
+        df,
+        base_analysis,
+        news,
+    )
+
+    analysis["timeframe"] = timeframe
+
+    return {
+        "signal":
+            analysis["signal"],
+
+        "confidence":
+            analysis["confidence"],
+
+        "analysis":
+            analysis,
+
+        "source":
+            get_symbol_info(symbol),
+
+        "timeframe":
+            timeframe,
+    }
+
+
+def build_v7_consensus(
+    results,
+):
+
+    weights = {
+        "M1": 0.05,
+        "M5": 0.08,
+        "M15": 0.12,
+        "H1": 0.22,
+        "H4": 0.18,
+        "D1": 0.25,
+        "W1": 0.10,
+    }
+
+    buy_score = 0.0
+    sell_score = 0.0
+
+    for timeframe, result in results.items():
+
+        weight = weights.get(
+            timeframe,
+            0,
+        )
+
+        signal = result.get(
+            "signal",
+            "NEUTRAL",
+        )
+
+        confidence = float(
+            result.get(
+                "confidence",
+                50,
+            )
+        ) / 100
+
+        if signal == "BUY":
+
+            buy_score += (
+                weight * confidence
+            )
+
+        elif signal == "SELL":
+
+            sell_score += (
+                weight * confidence
+            )
+
+    total = max(
+        buy_score + sell_score,
+        1e-9,
+    )
+
+    edge = (
+        abs(
+            buy_score - sell_score
+        )
+        / total
+    )
+
+    if buy_score > sell_score:
+
+        signal = "BUY"
+
+    elif sell_score > buy_score:
+
+        signal = "SELL"
+
+    else:
+
+        signal = "NEUTRAL"
+
+    directional_frames = [
+        result.get("signal")
+        for result in results.values()
+        if result.get("signal")
+        in {
+            "BUY",
+            "SELL",
+        }
+        and float(
+            result.get(
+                "confidence",
+                0,
+            )
+        ) >= 62
+    ]
+
+    same_direction = sum(
+        1
+        for value in directional_frames
+        if value == signal
+    )
+
+    higher_timeframes = [
+        results.get(
+            timeframe,
+            {},
+        ).get(
+            "signal"
+        )
+        for timeframe in [
+            "H4",
+            "D1",
+            "W1",
+        ]
+    ]
+
+    directional_htf = [
+        value
+        for value in higher_timeframes
+        if value in {
+            "BUY",
+            "SELL",
+        }
+    ]
+
+    if directional_htf:
+
+        htf_support = (
+            sum(
+                value == signal
+                for value in directional_htf
+            )
+            / len(directional_htf)
+        )
+
+    else:
+
+        htf_support = 0.0
+
+    high_conviction = (
+        signal != "NEUTRAL"
+        and same_direction >= 2
+        and edge >= 0.20
+        and htf_support >= 0.50
+    )
+
+    confidence = min(
+        97,
+        50
+        + edge * 45
+        + same_direction * 2,
+    )
+
+    if not high_conviction:
+
+        signal = "NEUTRAL"
+
+    return {
+        "consensus":
+            signal,
+
+        "signal":
+            signal,
+
+        "confidence":
+            round(
+                confidence,
+                2,
+            ),
+
+        "buy_score":
+            round(
+                buy_score,
+                4,
+            ),
+
+        "sell_score":
+            round(
+                sell_score,
+                4,
+            ),
+
+        "directional_edge":
+            round(
+                edge,
+                4,
+            ),
+
+        "high_conviction":
+            high_conviction,
+
+        "directional_frames":
+            directional_frames,
+
+        "same_direction_frames":
+            same_direction,
+
+        "htf_support":
+            round(
+                htf_support,
+                3,
+            ),
+
+        "engine_version":
+            ENGINE_VERSION,
+    }
+
+
+def history_payload(
+    symbol,
+    consensus,
+    results,
+):
+
+    signal = consensus.get(
+        "signal",
+        "NEUTRAL",
+    )
+
+    if signal not in {
+        "BUY",
+        "SELL",
+    }:
+
+        return None
+
+    priority = [
+        "H1",
+        "M15",
+        "H4",
+        "D1",
+        "W1",
+        "M5",
+        "M1",
+    ]
+
+    selected = None
+
+    for timeframe in priority:
+
+        item = results.get(
+            timeframe,
+            {},
+        )
+
+        analysis = (
+            item.get(
+                "analysis"
+            )
+            or {}
+        )
+
+        if (
+            analysis.get(
+                "signal"
+            )
+            == signal
+        ):
+
+            selected = analysis
+            break
+
+    selected = selected or {}
+
+    return {
+        "symbol":
+            symbol,
+
+        "timeframe":
+            "MTF",
+
+        "signal":
+            signal,
+
+        "entry":
+            selected.get(
+                "entry"
+            ),
+
+        "sl":
+            selected.get(
+                "sl"
+            ),
+
+        "tp1":
+            selected.get(
+                "tp1"
+            ),
+
+        "confidence":
+            consensus.get(
+                "confidence"
+            ),
+
+        "signal_quality":
+            selected.get(
+                "signal_quality"
+            ),
+    }
+
 
 @app.get("/")
 def root():
 
     return {
-        "name": APP_NAME,
-        "version": VERSION,
-        "status": "running",
-        "mode": MODE,
-        "analysis_only": ANALYSIS_ONLY,
+        "name":
+            APP_NAME,
+
+        "version":
+            VERSION,
+
+        "status":
+            "running",
+
+        "mode":
+            MODE,
+
+        "analysis_only":
+            True,
     }
 
-
-# ============================================================
-# HEALTH
-# ============================================================
 
 @app.get("/api/health")
 def health():
 
     return {
-        "name": APP_NAME,
-        "version": VERSION,
-        "status": "running",
-        "mode": MODE,
-        "analysis_only": ANALYSIS_ONLY,
+        "name":
+            APP_NAME,
+
+        "version":
+            VERSION,
+
+        "status":
+            "running",
+
+        "mode":
+            MODE,
+
+        "analysis_only":
+            True,
+
+        "engine_version":
+            ENGINE_VERSION,
+
+        "timeframes":
+            TIMEFRAMES,
     }
 
 
-# ============================================================
-# SYMBOL CHECK
-# ============================================================
+@app.get("/api/status")
+def status():
 
-@app.get("/api/symbol-check")
-def symbol_check(
-    symbol: str,
-):
+    return {
+        "name":
+            APP_NAME,
 
-    symbol = symbol.upper().strip()
+        "version":
+            VERSION,
 
-    if not symbol:
-        raise HTTPException(
-            status_code=400,
-            detail="Symbol không được để trống.",
-        )
+        "status":
+            "running",
 
-    try:
+        "mode":
+            MODE,
 
-        if is_tradingview_symbol(
-            symbol
-        ):
+        "analysis_only":
+            True,
 
-            return {
-                "symbol": symbol,
-                "available": True,
-                "provider": "YAHOO_PROXY",
-                "tradingview": True,
-                "source": get_symbol_info(
-                    symbol
-                ),
-                "analysis_only": True,
-            }
+        "execution":
+            False,
 
-        available = check_binance_symbol(
-            symbol
-        )
+        "order_placement":
+            False,
 
-        return {
-            "symbol": symbol,
-            "available": available,
-            "provider": "BINANCE",
-            "tradingview": False,
-            "source": get_symbol_info(
-                symbol
-            ),
-            "analysis_only": True,
-        }
+        "engine_version":
+            ENGINE_VERSION,
 
-    except Exception as exc:
+        "assets":
+            ASSETS,
+    }
 
-        return {
-            "symbol": symbol,
-            "available": False,
-            "error": str(exc),
-            "analysis_only": True,
-        }
-
-
-# ============================================================
-# MARKET DATA
-# ============================================================
 
 @app.get("/api/market-data")
 def market_data(
     symbol: str,
-    timeframe: str = "M15",
+    timeframe: str = "M1",
     limit: int = Query(
         300,
-        ge=10,
+        ge=1,
         le=1000,
     ),
 ):
 
-    symbol = symbol.upper().strip()
-    timeframe = timeframe.upper().strip()
-
     try:
 
-        df = fetch_market_dataframe(
-            symbol=symbol,
-            timeframe=timeframe,
-            limit=limit,
-        )
-
-        candles = []
-
-        for _, row in df.iterrows():
-
-            candles.append(
-                {
-                    "timestamp": row[
-                        "timestamp"
-                    ].isoformat(),
-
-                    "open": float(
-                        row["open"]
-                    ),
-
-                    "high": float(
-                        row["high"]
-                    ),
-
-                    "low": float(
-                        row["low"]
-                    ),
-
-                    "close": float(
-                        row["close"]
-                    ),
-
-                    "volume": float(
-                        row["volume"]
-                    ),
-                }
-            )
-
-        return _json_safe(
+        return json_safe(
             {
-                "status": "ok",
-                "symbol": symbol,
-                "timeframe": timeframe,
-                "count": len(candles),
-                "candles": candles,
-                "source": get_symbol_info(
-                    symbol
-                ),
-                "analysis_only": True,
+                "status":
+                    "ok",
+
+                "symbol":
+                    symbol.upper(),
+
+                "timeframe":
+                    timeframe.upper(),
+
+                "data":
+                    fetch_market_klines(
+                        symbol,
+                        timeframe,
+                        limit,
+                    ),
+
+                "source":
+                    get_symbol_info(
+                        symbol
+                    ),
             }
         )
 
     except Exception as exc:
 
         raise HTTPException(
-            status_code=502,
+            status_code=500,
             detail=(
-                f"Không lấy được dữ liệu "
-                f"{symbol} {timeframe}: {exc}"
+                "Market data thất bại: "
+                f"{exc}"
             ),
         )
 
 
-# ============================================================
-# ANALYZE RAW CANDLES
-# ============================================================
+@app.get("/api/news")
+def api_news(
+    symbol: str,
+    limit: int = Query(
+        8,
+        ge=1,
+        le=20,
+    ),
+):
+
+    return json_safe(
+        {
+            "status":
+                "ok",
+
+            **fetch_news(
+                symbol,
+                limit,
+            ),
+        }
+    )
+
 
 @app.post("/api/analyze")
 def analyze(
@@ -339,123 +730,46 @@ def analyze(
 
     try:
 
-        import pandas as pd
+        df = validate_dataframe(
+            request.candles
+        )
 
-        rows = [
-            candle.model_dump()
-            for candle in request.candles
-        ]
-
-        df = pd.DataFrame(rows)
-
-        result = analyze_market(
+        base = analyze_market(
             df
         )
 
-        return _json_safe(
+        result = enrich(
+            df,
+            base,
             {
-                "status": "ok",
-                "symbol": request.symbol.upper(),
-                "timeframe": request.timeframe.upper(),
-                "analysis": result,
-                "analysis_only": True,
+                "items": [],
+                "sentiment_score": 0,
+            },
+        )
+
+        return json_safe(
+            {
+                "status":
+                    "ok",
+
+                "analysis":
+                    result,
             }
         )
+
+    except HTTPException:
+        raise
 
     except Exception as exc:
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=(
+                "Phân tích thất bại: "
+                f"{exc}"
+            ),
         )
 
-
-# ============================================================
-# INTERNAL SINGLE-TIMEFRAME ANALYSIS
-# ============================================================
-
-def _analyze_one(
-    symbol: str,
-    timeframe: str,
-    limit: int,
-) -> dict[str, Any]:
-
-    df = fetch_market_dataframe(
-        symbol=symbol,
-        timeframe=timeframe,
-        limit=limit,
-    )
-
-    analysis = analyze_market(
-        df
-    )
-
-    return {
-        "signal": analysis.get(
-            "signal",
-            "NEUTRAL",
-        ),
-
-        "confidence": analysis.get(
-            "confidence",
-            0.0,
-        ),
-
-        "analysis": analysis,
-
-        "source": get_symbol_info(
-            symbol
-        ),
-    }
-
-
-# ============================================================
-# SINGLE-TIMEFRAME LIVE ANALYSIS
-# ============================================================
-
-@app.get("/api/analyze-live")
-def analyze_live(
-    symbol: str,
-    timeframe: str = "M15",
-    limit: int = Query(
-        300,
-        ge=220,
-        le=1000,
-    ),
-):
-
-    symbol = symbol.upper().strip()
-    timeframe = timeframe.upper().strip()
-
-    try:
-
-        result = _analyze_one(
-            symbol=symbol,
-            timeframe=timeframe,
-            limit=limit,
-        )
-
-        return _json_safe(
-            {
-                "status": "ok",
-                "symbol": symbol,
-                "timeframe": timeframe,
-                **result,
-                "analysis_only": True,
-            }
-        )
-
-    except Exception as exc:
-
-        raise HTTPException(
-            status_code=502,
-            detail=str(exc),
-        )
-
-
-# ============================================================
-# MULTI-TIMEFRAME LIVE ANALYSIS
-# ============================================================
 
 @app.get("/api/analyze-live-mtf")
 def analyze_live_mtf(
@@ -467,33 +781,37 @@ def analyze_live_mtf(
     ),
 ):
 
-    symbol = symbol.upper().strip()
-
-    results: dict[str, Any] = {}
-    errors: dict[str, str] = {}
-
-    timeframes = list(
-        TIMEFRAMES
+    symbol = (
+        symbol
+        .upper()
+        .strip()
     )
 
-    # Không tạo quá nhiều thread
-    max_workers = min(
-        len(timeframes),
-        7,
-    )
+    results = {}
+    errors = {}
 
     with ThreadPoolExecutor(
-        max_workers=max_workers
+        max_workers=7
     ) as pool:
 
         jobs = {
             pool.submit(
-                _analyze_one,
+                analyze_one,
                 symbol,
                 timeframe,
                 limit,
-            ): timeframe
-            for timeframe in timeframes
+                timeframe
+                in {
+                    "H1",
+                    "H4",
+                    "D1",
+                    "W1",
+                },
+            ):
+                timeframe
+
+            for timeframe
+            in TIMEFRAMES
         }
 
         for job in as_completed(
@@ -519,220 +837,190 @@ def analyze_live_mtf(
                 results[
                     timeframe
                 ] = {
-                    "signal": "NEUTRAL",
-                    "confidence": 0.0,
-                    "analysis": None,
-                    "source": get_symbol_info(
-                        symbol
-                    ),
-                    "error": str(exc),
+                    "signal":
+                        "NEUTRAL",
+
+                    "confidence":
+                        0,
+
+                    "analysis":
+                        None,
+
+                    "error":
+                        str(exc),
+
+                    "timeframe":
+                        timeframe,
                 }
 
-    # ========================================================
-    # CONSENSUS INPUT
-    # ========================================================
+    consensus = build_v7_consensus(
+        results
+    )
 
-    consensus_input = {}
-
-    for timeframe in timeframes:
-
-        item = results.get(
-            timeframe,
-            {},
-        )
-
-        consensus_input[
-            timeframe
-        ] = {
-            "signal": item.get(
-                "signal",
-                "NEUTRAL",
-            ),
-
-            "confidence": item.get(
-                "confidence",
-                0.0,
-            ),
-        }
+    history_record = None
 
     try:
 
-        consensus = calculate_mtf_consensus(
-            consensus_input
+        payload = history_payload(
+            symbol,
+            consensus,
+            results,
         )
+
+        if payload:
+
+            history_record = (
+                record_signal(
+                    payload
+                )
+            )
 
     except Exception as exc:
 
-        consensus = {
-            "signal": "NEUTRAL",
-            "confidence": 0.0,
-            "buy_score": 0.0,
-            "sell_score": 0.0,
-            "neutral_score": 1.0,
-            "details": {},
-            "error": str(exc),
-        }
+        errors[
+            "history"
+        ] = str(exc)
 
-    return _json_safe(
+    return json_safe(
         {
-            "status": "ok",
+            "status":
+                "ok",
 
-            "symbol": symbol,
+            "symbol":
+                symbol,
 
-            "timeframes": results,
+            "timeframes":
+                results,
 
-            "consensus": consensus,
+            "consensus":
+                consensus,
 
-            "errors": errors,
+            "errors":
+                errors,
 
-            "source": get_symbol_info(
-                symbol
-            ),
+            "history_record":
+                history_record,
 
-            "analysis_only": True,
+            "analysis_only":
+                True,
+
+            "engine_version":
+                ENGINE_VERSION,
+
+            "source":
+                get_symbol_info(
+                    symbol
+                ),
         }
     )
 
 
-# ============================================================
-# MTF ANALYSIS FROM REQUEST
-# ============================================================
-
-@app.post("/api/analyze-mtf")
-def analyze_mtf(
-    request: MTFRequest,
+@app.get("/api/history")
+def api_history(
+    limit: int = Query(
+        HISTORY_LIMIT,
+        ge=1,
+        le=HISTORY_LIMIT,
+    ),
 ):
 
-    symbol = request.symbol.upper().strip()
+    history = get_history(
+        limit
+    )
 
-    requested_timeframes = [
-        str(tf).upper().strip()
-        for tf in request.timeframes
-    ]
-
-    valid_timeframes = [
-        tf
-        for tf in requested_timeframes
-        if tf in TIMEFRAMES
-    ]
-
-    if not valid_timeframes:
-
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Không có timeframe hợp lệ. "
-                f"Hỗ trợ: {TIMEFRAMES}"
-            ),
-        )
-
-    results: dict[str, Any] = {}
-    errors: dict[str, str] = {}
-
-    with ThreadPoolExecutor(
-        max_workers=min(
-            len(valid_timeframes),
-            7,
-        )
-    ) as pool:
-
-        jobs = {
-            pool.submit(
-                _analyze_one,
-                symbol,
-                timeframe,
-                request.limit,
-            ): timeframe
-            for timeframe in valid_timeframes
-        }
-
-        for job in as_completed(
-            jobs
-        ):
-
-            timeframe = jobs[
-                job
-            ]
-
-            try:
-
-                results[
-                    timeframe
-                ] = job.result()
-
-            except Exception as exc:
-
-                errors[
-                    timeframe
-                ] = str(exc)
-
-                results[
-                    timeframe
-                ] = {
-                    "signal": "NEUTRAL",
-                    "confidence": 0.0,
-                    "analysis": None,
-                    "error": str(exc),
-                }
-
-    consensus_input = {
-        timeframe: {
-            "signal": results[
-                timeframe
-            ].get(
-                "signal",
-                "NEUTRAL",
-            ),
-
-            "confidence": results[
-                timeframe
-            ].get(
-                "confidence",
-                0.0,
-            ),
-        }
-
-        for timeframe in valid_timeframes
-    }
-
-    try:
-
-        consensus = calculate_mtf_consensus(
-            consensus_input
-        )
-
-    except Exception as exc:
-
-        consensus = {
-            "signal": "NEUTRAL",
-            "confidence": 0.0,
-            "error": str(exc),
-        }
-
-    return _json_safe(
+    return json_safe(
         {
-            "status": "ok",
-            "symbol": symbol,
-            "timeframes": results,
-            "consensus": consensus,
-            "errors": errors,
-            "analysis_only": True,
+            "status":
+                "ok",
+
+            "history":
+                history,
+
+            "stats":
+                get_stats(
+                    history
+                ),
+
+            "limit":
+                limit,
+
+            "analysis_only":
+                True,
         }
     )
 
 
-# ============================================================
-# ERROR HANDLER
-# ============================================================
+@app.get("/api/history/refresh")
+def api_history_refresh(
+    limit: int = Query(
+        HISTORY_LIMIT,
+        ge=1,
+        le=HISTORY_LIMIT,
+    ),
+):
 
-@app.get("/api/status")
-def status():
+    result = refresh_history(
+        limit
+    )
 
-    return {
-        "application": APP_NAME,
-        "version": VERSION,
-        "status": "online",
-        "mode": MODE,
-        "analysis_only": True,
-        "automatic_order_execution": False,
-    }
+    return json_safe(
+        {
+            "status":
+                "ok",
+
+            **result,
+
+            "analysis_only":
+                True,
+        }
+    )
+
+
+@app.post("/api/history/record")
+def api_history_record(
+    payload: dict,
+):
+
+    try:
+
+        result = record_signal(
+            payload
+        )
+
+        return json_safe(
+            {
+                "status":
+                    "ok",
+
+                **result,
+
+                "stats":
+                    get_stats(),
+
+                "analysis_only":
+                    True,
+            }
+        )
+
+    except Exception as exc:
+
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        )
+
+
+@app.delete("/api/history")
+def api_history_delete():
+
+    return json_safe(
+        {
+            "status":
+                "ok",
+
+            **clear_history(),
+
+            "analysis_only":
+                True,
+        }
+    )

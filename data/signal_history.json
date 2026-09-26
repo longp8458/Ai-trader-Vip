@@ -1,0 +1,22 @@
+[
+  {
+    "id": "d947706bac4d4ef18f56f5c7a2866cdd",
+    "symbol": "BTCUSDT",
+    "timeframe": "MTF",
+    "signal": "BUY",
+    "entry": 83972.32,
+    "sl": 80954.08182589749,
+    "tp1": 86990.55817410252,
+    "confidence": 72.44,
+    "signal_quality": 94.12,
+    "current": 83972.32,
+    "result": "PENDING",
+    "result_time": null,
+    "result_time_iso": null,
+    "created_at": 1790431012.3728464,
+    "created_at_iso": "2026-09-26T13:56:52.372851+00:00",
+    "updated_at": 1790431012.3728464,
+    "updated_at_iso": "2026-09-26T13:56:52.372851+00:00",
+    "analysis_only": true
+  }
+]

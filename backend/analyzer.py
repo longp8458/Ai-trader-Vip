@@ -14,19 +14,18 @@ from backend.levels import detect_levels
 from backend.volume import analyze_volume
 
 
+# ============================================================
+# NOVATRADE AI V6.3
+# MARKET ANALYZER
+# ============================================================
+
 MIN_CANDLES = 220
 
-# Risk/reference levels only — KHÔNG đặt lệnh.
 RISK_ATR_MULTIPLIER = 1.5
 
-# Validation thresholds
 SIGNAL_QUALITY_MIN = 65.0
 CONFIDENCE_MIN = 55.0
-
-# Không cho tín hiệu nếu xung đột quá lớn.
 MAX_CONFLICT = 0.35
-
-# Chênh lệch BUY/SELL tối thiểu.
 MIN_DIRECTIONAL_EDGE = 0.08
 
 
@@ -35,13 +34,29 @@ MIN_DIRECTIONAL_EDGE = 0.08
 # ============================================================
 
 def _safe(value: Any, default: float = 0.0) -> float:
-    try:
-        x = float(value)
+    """
+    Convert scalar numeric values safely.
+    Never allow NaN / Inf into JSON.
+    """
 
-        if not math.isfinite(x):
+    if value is None:
+        return default
+
+    try:
+        if isinstance(value, pd.Series):
+            if value.empty:
+                return default
+            value = value.iloc[-1]
+
+        if isinstance(value, pd.DataFrame):
             return default
 
-        return x
+        result = float(value)
+
+        if not math.isfinite(result):
+            return default
+
+        return result
 
     except Exception:
         return default
@@ -51,59 +66,240 @@ def _text(value: Any, default: str = "") -> str:
     if value is None:
         return default
 
-    return str(value)
+    try:
+        return str(value)
+    except Exception:
+        return default
+
+
+def _clean_number(value: Any, digits: int = 4) -> Any:
+    """
+    JSON-safe number.
+    """
+
+    if value is None:
+        return None
+
+    try:
+        if isinstance(value, pd.Series):
+            if value.empty:
+                return None
+            value = value.iloc[-1]
+
+        if isinstance(value, (np.integer,)):
+            return int(value)
+
+        if isinstance(value, (np.floating, float, int)):
+            value = float(value)
+
+            if not math.isfinite(value):
+                return None
+
+            return round(value, digits)
+
+    except Exception:
+        return None
+
+    return value
+
+
+def _json_safe(value: Any) -> Any:
+    """
+    Recursively remove NaN / Inf / numpy objects.
+    """
+
+    if isinstance(value, dict):
+        return {
+            str(k): _json_safe(v)
+            for k, v in value.items()
+        }
+
+    if isinstance(value, (list, tuple)):
+        return [
+            _json_safe(v)
+            for v in value
+        ]
+
+    if isinstance(value, pd.Series):
+        return _json_safe(value.tolist())
+
+    if isinstance(value, pd.DataFrame):
+        return _json_safe(value.to_dict(orient="records"))
+
+    if isinstance(value, np.ndarray):
+        return _json_safe(value.tolist())
+
+    if isinstance(value, (np.integer,)):
+        return int(value)
+
+    if isinstance(value, (np.floating,)):
+        value = float(value)
+
+        if not math.isfinite(value):
+            return None
+
+        return value
+
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            return None
+
+    return value
 
 
 def _to_list(value: Any) -> list:
     if value is None:
         return []
 
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list):
+        return value
+
+    if isinstance(value, tuple):
         return list(value)
 
-    if isinstance(value, np.ndarray):
-        return value.tolist()
-
-    if isinstance(value, (int, float, np.integer, np.floating)):
-        x = _safe(value, math.nan)
-
-        if math.isfinite(x):
-            return [x]
-
-        return []
-
-    return []
+    return [value]
 
 
-def _clean_number(value: Any):
-    x = _safe(value, math.nan)
+def _component(value: Any) -> dict:
+    if isinstance(value, dict):
+        return value
 
-    if math.isfinite(x):
-        return x
+    return {
+        "signal": "NEUTRAL",
+        "value": value,
+    }
 
-    return None
+
+def _signal_from_component(value: Any) -> str:
+    if isinstance(value, dict):
+        for key in (
+            "signal",
+            "direction",
+            "bias",
+            "trend",
+            "result",
+        ):
+            if key in value:
+                signal = _text(
+                    value.get(key),
+                    "NEUTRAL",
+                ).upper()
+
+                if signal in {"BUY", "SELL", "NEUTRAL"}:
+                    return signal
+
+    if isinstance(value, str):
+        signal = value.upper()
+
+        if signal in {"BUY", "SELL", "NEUTRAL"}:
+            return signal
+
+    return "NEUTRAL"
+
+
+def _score_component(value: Any) -> float:
+    """
+    Convert a module result into a 0-100 score.
+    """
+
+    if isinstance(value, dict):
+        for key in (
+            "score",
+            "confidence",
+            "strength",
+            "quality",
+        ):
+            if key in value:
+                return max(
+                    0.0,
+                    min(
+                        100.0,
+                        _safe(value.get(key))
+                    )
+                )
+
+    return 0.0
 
 
 # ============================================================
-# DATAFRAME
+# DATA PREPARATION
 # ============================================================
 
 def _prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    if df is None or df.empty:
-        raise ValueError("DataFrame rỗng")
+    if df is None:
+        raise ValueError("Không có dữ liệu thị trường.")
+
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError("Dữ liệu đầu vào phải là pandas DataFrame.")
+
+    if df.empty:
+        raise ValueError("DataFrame rỗng.")
 
     data = df.copy()
 
-    required = ["open", "high", "low", "close", "volume"]
+    # Normalize column names
+    rename_map = {}
 
-    missing = [c for c in required if c not in data.columns]
+    for column in data.columns:
+        name = str(column).strip().lower()
+
+        if name == "timestamp":
+            rename_map[column] = "timestamp"
+
+        elif name == "time":
+            rename_map[column] = "timestamp"
+
+        elif name == "datetime":
+            rename_map[column] = "timestamp"
+
+        elif name == "open":
+            rename_map[column] = "open"
+
+        elif name == "high":
+            rename_map[column] = "high"
+
+        elif name == "low":
+            rename_map[column] = "low"
+
+        elif name == "close":
+            rename_map[column] = "close"
+
+        elif name == "volume":
+            rename_map[column] = "volume"
+
+    data = data.rename(columns=rename_map)
+
+    required = [
+        "open",
+        "high",
+        "low",
+        "close",
+    ]
+
+    missing = [
+        column
+        for column in required
+        if column not in data.columns
+    ]
 
     if missing:
         raise ValueError(
-            f"Thiếu cột OHLCV: {', '.join(missing)}"
+            f"Thiếu cột OHLC: {missing}"
         )
 
-    for column in required:
+    if "volume" not in data.columns:
+        data["volume"] = 0.0
+
+    # Numeric conversion
+    numeric_columns = [
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+    ]
+
+    for column in numeric_columns:
         data[column] = pd.to_numeric(
             data[column],
             errors="coerce",
@@ -115,69 +311,426 @@ def _prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     data = data.dropna(
-        subset=required
+        subset=[
+            "open",
+            "high",
+            "low",
+            "close",
+        ]
     )
+
+    # Validate OHLC
+    data = data[
+        (data["high"] >= data["low"])
+        & (data["high"] >= data["open"])
+        & (data["high"] >= data["close"])
+        & (data["low"] <= data["open"])
+        & (data["low"] <= data["close"])
+    ]
+
+    # Timestamp
+    if "timestamp" in data.columns:
+        try:
+            data["timestamp"] = pd.to_datetime(
+                data["timestamp"],
+                errors="coerce",
+            )
+        except Exception:
+            pass
+
+        data = data.dropna(
+            subset=["timestamp"]
+        )
+
+        data = data.sort_values(
+            "timestamp"
+        )
+
+        data = data.drop_duplicates(
+            subset=["timestamp"],
+            keep="last",
+        )
+
+    else:
+        data = data.sort_index()
+
+    data = data.reset_index(drop=True)
 
     if len(data) < MIN_CANDLES:
         raise ValueError(
-            f"Không đủ dữ liệu: {len(data)}/{MIN_CANDLES} candles"
+            f"Không đủ dữ liệu: {len(data)} nến. "
+            f"Cần tối thiểu {MIN_CANDLES} nến."
         )
 
-    return data.reset_index(drop=True)
+    return data
 
 
 # ============================================================
-# COMPONENT EXTRACTION
+# INDICATORS
 # ============================================================
 
-def _component(result: Any) -> dict:
-    if isinstance(result, dict):
-        return result
+def _calculate_rsi(
+    close: pd.Series,
+    period: int = 14,
+) -> pd.Series:
 
-    return {}
+    close = pd.to_numeric(
+        close,
+        errors="coerce",
+    )
+
+    delta = close.diff()
+
+    gain = delta.clip(
+        lower=0
+    )
+
+    loss = -delta.clip(
+        upper=0
+    )
+
+    avg_gain = gain.ewm(
+        alpha=1 / period,
+        adjust=False,
+        min_periods=period,
+    ).mean()
+
+    avg_loss = loss.ewm(
+        alpha=1 / period,
+        adjust=False,
+        min_periods=period,
+    ).mean()
+
+    rs = avg_gain / avg_loss.replace(
+        0,
+        np.nan,
+    )
+
+    rsi = 100 - (
+        100 / (1 + rs)
+    )
+
+    # Special cases
+    rsi = rsi.where(
+        ~(
+            (avg_loss == 0)
+            & (avg_gain > 0)
+        ),
+        100.0,
+    )
+
+    rsi = rsi.where(
+        ~(
+            (avg_gain == 0)
+            & (avg_loss > 0)
+        ),
+        0.0,
+    )
+
+    return rsi
 
 
-def _signal_from_component(result: dict) -> str:
-    for key in (
-        "signal",
-        "direction",
-        "bias",
-        "trend",
-    ):
-        value = result.get(key)
+def _series_from_column(
+    data: pd.DataFrame,
+    names: list[str],
+) -> pd.Series | None:
 
-        if value is not None:
-            text = str(value).upper()
+    """
+    Safely get an existing DataFrame column.
 
-            if text in ("BUY", "BULLISH", "LONG"):
-                return "BUY"
+    IMPORTANT:
+    Never use:
+        series_a or series_b
 
-            if text in ("SELL", "BEARISH", "SHORT"):
-                return "SELL"
+    because Pandas Series cannot be evaluated as bool.
+    """
 
-            if text in ("NEUTRAL", "RANGE", "RANGING"):
-                return "NEUTRAL"
+    for name in names:
 
-    return "NEUTRAL"
+        if name not in data.columns:
+            continue
+
+        value = data[name]
+
+        if isinstance(value, pd.Series):
+            return value
+
+    return None
 
 
-def _score_component(result: dict) -> float:
-    for key in (
-        "score",
-        "strength",
-        "trend_strength",
-        "confidence",
-    ):
-        if key in result:
-            return max(
-                0.0,
-                min(
-                    100.0,
-                    _safe(result.get(key), 0.0),
-                ),
+def _ensure_indicators(
+    df: pd.DataFrame,
+) -> pd.DataFrame:
+
+    data = df.copy()
+
+    # --------------------------------------------------------
+    # First try project's indicator engine
+    # --------------------------------------------------------
+
+    try:
+        result = add_indicators(
+            data.copy()
+        )
+
+        if isinstance(result, pd.DataFrame):
+            data = result.copy()
+
+    except Exception:
+        # The analyzer has its own fallback indicators.
+        pass
+
+    # --------------------------------------------------------
+    # Normalize possible indicator column names
+    # --------------------------------------------------------
+
+    def get_existing(
+        names: list[str],
+    ) -> pd.Series | None:
+
+        return _series_from_column(
+            data,
+            names,
+        )
+
+    # ========================================================
+    # EMA 20
+    # ========================================================
+
+    ema20 = get_existing(
+        [
+            "EMA20",
+            "ema20",
+            "EMA_20",
+            "ema_20",
+        ]
+    )
+
+    if ema20 is None:
+        ema20 = data["close"].ewm(
+            span=20,
+            adjust=False,
+            min_periods=20,
+        ).mean()
+
+    data["EMA20"] = pd.to_numeric(
+        ema20,
+        errors="coerce",
+    )
+
+    # ========================================================
+    # EMA 50
+    # ========================================================
+
+    ema50 = get_existing(
+        [
+            "EMA50",
+            "ema50",
+            "EMA_50",
+            "ema_50",
+        ]
+    )
+
+    if ema50 is None:
+        ema50 = data["close"].ewm(
+            span=50,
+            adjust=False,
+            min_periods=50,
+        ).mean()
+
+    data["EMA50"] = pd.to_numeric(
+        ema50,
+        errors="coerce",
+    )
+
+    # ========================================================
+    # EMA 200
+    # ========================================================
+
+    ema200 = get_existing(
+        [
+            "EMA200",
+            "ema200",
+            "EMA_200",
+            "ema_200",
+        ]
+    )
+
+    if ema200 is None:
+        ema200 = data["close"].ewm(
+            span=200,
+            adjust=False,
+            min_periods=200,
+        ).mean()
+
+    data["EMA200"] = pd.to_numeric(
+        ema200,
+        errors="coerce",
+    )
+
+    # ========================================================
+    # RSI 14
+    # ========================================================
+
+    rsi14 = get_existing(
+        [
+            "RSI14",
+            "RSI",
+            "rsi14",
+            "rsi",
+            "RSI_14",
+        ]
+    )
+
+    if rsi14 is None:
+        rsi14 = _calculate_rsi(
+            data["close"],
+            14,
+        )
+
+    data["RSI14"] = pd.to_numeric(
+        rsi14,
+        errors="coerce",
+    )
+
+    # ========================================================
+    # MACD
+    # ========================================================
+
+    macd = get_existing(
+        [
+            "MACD",
+            "macd",
+        ]
+    )
+
+    macd_signal = get_existing(
+        [
+            "MACD_SIGNAL",
+            "MACDSignal",
+            "macd_signal",
+            "macdSignal",
+        ]
+    )
+
+    if macd is None:
+        ema12 = data["close"].ewm(
+            span=12,
+            adjust=False,
+        ).mean()
+
+        ema26 = data["close"].ewm(
+            span=26,
+            adjust=False,
+        ).mean()
+
+        macd = ema12 - ema26
+
+    if macd_signal is None:
+        macd_signal = pd.Series(
+            macd,
+            index=data.index,
+        ).ewm(
+            span=9,
+            adjust=False,
+        ).mean()
+
+    data["MACD"] = pd.to_numeric(
+        macd,
+        errors="coerce",
+    )
+
+    data["MACD_SIGNAL"] = pd.to_numeric(
+        macd_signal,
+        errors="coerce",
+    )
+
+    # ========================================================
+    # ATR 14
+    # ========================================================
+
+    atr14 = get_existing(
+        [
+            "ATR14",
+            "ATR",
+            "atr14",
+            "atr",
+            "ATR_14",
+        ]
+    )
+
+    if atr14 is None:
+
+        previous_close = data[
+            "close"
+        ].shift(1)
+
+        tr1 = (
+            data["high"]
+            - data["low"]
+        )
+
+        tr2 = (
+            data["high"]
+            - previous_close
+        ).abs()
+
+        tr3 = (
+            data["low"]
+            - previous_close
+        ).abs()
+
+        true_range = pd.concat(
+            [
+                tr1,
+                tr2,
+                tr3,
+            ],
+            axis=1,
+        ).max(axis=1)
+
+        atr14 = true_range.ewm(
+            alpha=1 / 14,
+            adjust=False,
+            min_periods=14,
+        ).mean()
+
+    data["ATR14"] = pd.to_numeric(
+        atr14,
+        errors="coerce",
+    )
+
+    # --------------------------------------------------------
+    # Fill indicator gaps
+    # --------------------------------------------------------
+
+    indicator_columns = [
+        "EMA20",
+        "EMA50",
+        "EMA200",
+        "RSI14",
+        "MACD",
+        "MACD_SIGNAL",
+        "ATR14",
+    ]
+
+    for column in indicator_columns:
+
+        data[column] = (
+            data[column]
+            .replace(
+                [np.inf, -np.inf],
+                np.nan,
             )
+        )
 
-    return 0.0
+        data[column] = (
+            data[column]
+            .ffill()
+            .bfill()
+        )
+
+    return data
 
 
 # ============================================================
@@ -185,7 +738,6 @@ def _score_component(result: dict) -> float:
 # ============================================================
 
 def _validate_signal(
-    *,
     raw_signal: str,
     buy_score: float,
     sell_score: float,
@@ -199,147 +751,78 @@ def _validate_signal(
     mtf_bias: str = "NEUTRAL",
 ) -> dict:
 
-    raw_signal = _text(
-        raw_signal,
-        "NEUTRAL",
-    ).upper()
-
-    if raw_signal not in (
-        "BUY",
-        "SELL",
-        "NEUTRAL",
-    ):
-        raw_signal = "NEUTRAL"
+    raw_signal = (
+        raw_signal
+        if raw_signal in {"BUY", "SELL"}
+        else "NEUTRAL"
+    )
 
     total = buy_score + sell_score
 
-    if total > 0:
-        directional_edge = abs(
-            buy_score - sell_score
-        ) / total
-    else:
+    if total <= 0:
         directional_edge = 0.0
+    else:
+        directional_edge = (
+            abs(buy_score - sell_score)
+            / total
+        )
 
-    reasons = []
-
-    # --------------------------------------------------------
-    # Quality gate
-    # --------------------------------------------------------
+    reasons: list[str] = []
 
     if quality < SIGNAL_QUALITY_MIN:
         reasons.append(
-            f"Quality thấp ({quality:.1f} < {SIGNAL_QUALITY_MIN:.1f})"
+            f"Signal quality thấp "
+            f"({quality:.1f} < {SIGNAL_QUALITY_MIN:.1f})"
         )
-
-    # --------------------------------------------------------
-    # Confidence gate
-    # --------------------------------------------------------
 
     if confidence < CONFIDENCE_MIN:
         reasons.append(
-            f"Confidence thấp ({confidence:.1f} < {CONFIDENCE_MIN:.1f})"
+            f"Confidence thấp "
+            f"({confidence:.1f} < {CONFIDENCE_MIN:.1f})"
         )
-
-    # --------------------------------------------------------
-    # Conflict gate
-    # --------------------------------------------------------
 
     if conflict > MAX_CONFLICT:
         reasons.append(
-            f"Xung đột module cao ({conflict:.2f})"
+            f"Conflict cao "
+            f"({conflict:.2f} > {MAX_CONFLICT:.2f})"
         )
 
-    # --------------------------------------------------------
-    # Directional edge
-    # --------------------------------------------------------
-
-    if raw_signal in ("BUY", "SELL"):
-
-        if directional_edge < MIN_DIRECTIONAL_EDGE:
-            reasons.append(
-                f"BUY/SELL edge quá thấp ({directional_edge:.2f})"
-            )
-
-    # --------------------------------------------------------
-    # Structure validation
-    # --------------------------------------------------------
-
-    if raw_signal == "BUY":
-
-        if structure_signal == "SELL":
-            reasons.append(
-                "Market Structure đang chống lại BUY"
-            )
-
-    elif raw_signal == "SELL":
-
-        if structure_signal == "BUY":
-            reasons.append(
-                "Market Structure đang chống lại SELL"
-            )
-
-    # --------------------------------------------------------
-    # Regime validation
-    # --------------------------------------------------------
-
-    if raw_signal == "BUY":
-
-        if regime_signal == "SELL":
-            reasons.append(
-                "Market Regime đang chống lại BUY"
-            )
-
-    elif raw_signal == "SELL":
-
-        if regime_signal == "BUY":
-            reasons.append(
-                "Market Regime đang chống lại SELL"
-            )
-
-    # --------------------------------------------------------
-    # MTF validation
-    # --------------------------------------------------------
-
-    mtf_conflict = False
-
-    if raw_signal == "BUY" and mtf_bias == "SELL":
-        mtf_conflict = True
-
-    if raw_signal == "SELL" and mtf_bias == "BUY":
-        mtf_conflict = True
-
-    if mtf_conflict:
+    if directional_edge < MIN_DIRECTIONAL_EDGE:
         reasons.append(
-            f"MTF bias ({mtf_bias}) chống lại tín hiệu"
+            f"Directional edge thấp "
+            f"({directional_edge:.2f})"
         )
 
-    # --------------------------------------------------------
-    # Candlestick / volume
-    # --------------------------------------------------------
+    opposing = {
+        "BUY": "SELL",
+        "SELL": "BUY",
+    }
 
-    if raw_signal == "BUY" and candle_signal == "SELL":
+    opposite = opposing.get(raw_signal)
+
+    if opposite:
+
+        components = {
+            "structure": structure_signal,
+            "regime": regime_signal,
+            "candle": candle_signal,
+            "volume": volume_signal,
+        }
+
+        for name, signal in components.items():
+
+            if signal == opposite:
+                reasons.append(
+                    f"{name} đang chống lại {raw_signal}"
+                )
+
+    if (
+        mtf_bias in {"BUY", "SELL"}
+        and raw_signal != mtf_bias
+    ):
         reasons.append(
-            "Candlestick đang chống lại BUY"
+            f"MTF bias {mtf_bias} chống lại {raw_signal}"
         )
-
-    if raw_signal == "SELL" and candle_signal == "BUY":
-        reasons.append(
-            "Candlestick đang chống lại SELL"
-        )
-
-    if raw_signal == "BUY" and volume_signal == "SELL":
-        reasons.append(
-            "Volume đang chống lại BUY"
-        )
-
-    if raw_signal == "SELL" and volume_signal == "BUY":
-        reasons.append(
-            "Volume đang chống lại SELL"
-        )
-
-    # --------------------------------------------------------
-    # Final decision
-    # --------------------------------------------------------
 
     final_signal = raw_signal
 
@@ -355,7 +838,9 @@ def _validate_signal(
             4,
         ),
         "validation_reasons": reasons,
-        "validation_passed": len(reasons) == 0,
+        "validation_passed": (
+            len(reasons) == 0
+        ),
         "mtf_bias": mtf_bias,
     }
 
@@ -365,168 +850,85 @@ def _validate_signal(
 # ============================================================
 
 def calculate_trade_levels(
+    data: pd.DataFrame,
     signal: str,
-    entry: float,
-    atr: float,
-    support: list | None = None,
-    resistance: list | None = None,
 ) -> dict:
 
-    signal = _text(
-        signal,
-        "NEUTRAL",
-    ).upper()
-
-    entry = _safe(entry)
-    atr = _safe(atr)
-
-    if signal not in ("BUY", "SELL"):
+    if data.empty:
         return {
-            "valid": False,
             "entry": None,
             "sl": None,
             "tp1": None,
             "tp2": None,
             "tp3": None,
-            "risk_distance": None,
-            "rr": {
-                "tp1": None,
-                "tp2": None,
-                "tp3": None,
-            },
+            "rr": None,
         }
 
-    if entry <= 0 or atr <= 0:
+    close = _safe(
+        data["close"].iloc[-1]
+    )
+
+    atr = _safe(
+        data["ATR14"].iloc[-1]
+    )
+
+    if close <= 0:
         return {
-            "valid": False,
             "entry": None,
             "sl": None,
             "tp1": None,
             "tp2": None,
             "tp3": None,
-            "risk_distance": None,
-            "rr": {
-                "tp1": None,
-                "tp2": None,
-                "tp3": None,
-            },
+            "rr": None,
         }
 
-    support = _to_list(support)
-    resistance = _to_list(resistance)
+    if atr <= 0:
+        atr = close * 0.005
 
-    distance = atr * RISK_ATR_MULTIPLIER
+    risk = atr * RISK_ATR_MULTIPLIER
 
     if signal == "BUY":
 
-        sl = entry - distance
+        entry = close
 
-        if support:
-            valid_support = [
-                x for x in support
-                if _safe(x) < entry
-            ]
-
-            if valid_support:
-                nearest = max(valid_support)
-
-                # Không đặt SL sát entry hơn ATR-based SL.
-                sl = min(
-                    sl,
-                    nearest,
-                )
-
-        risk = entry - sl
-
-        if risk <= 0:
-            return {
-                "valid": False,
-                "entry": None,
-                "sl": None,
-                "tp1": None,
-                "tp2": None,
-                "tp3": None,
-                "risk_distance": None,
-                "rr": {
-                    "tp1": None,
-                    "tp2": None,
-                    "tp3": None,
-                },
-            }
+        sl = entry - risk
 
         tp1 = entry + risk * 1.0
         tp2 = entry + risk * 2.0
         tp3 = entry + risk * 3.0
 
+        rr = 1.0
+
+    elif signal == "SELL":
+
+        entry = close
+
+        sl = entry + risk
+
+        tp1 = entry - risk * 1.0
+        tp2 = entry - risk * 2.0
+        tp3 = entry - risk * 3.0
+
+        rr = 1.0
+
+    else:
+
         return {
-            "valid": True,
-            "entry": _clean_number(entry),
-            "sl": _clean_number(sl),
-            "tp1": _clean_number(tp1),
-            "tp2": _clean_number(tp2),
-            "tp3": _clean_number(tp3),
-            "risk_distance": _clean_number(risk),
-            "rr": {
-                "tp1": 1.0,
-                "tp2": 2.0,
-                "tp3": 3.0,
-            },
-        }
-
-    # SELL
-
-    sl = entry + distance
-
-    if resistance:
-
-        valid_resistance = [
-            x for x in resistance
-            if _safe(x) > entry
-        ]
-
-        if valid_resistance:
-            nearest = min(valid_resistance)
-
-            sl = max(
-                sl,
-                nearest,
-            )
-
-    risk = sl - entry
-
-    if risk <= 0:
-        return {
-            "valid": False,
-            "entry": None,
+            "entry": _clean_number(close),
             "sl": None,
             "tp1": None,
             "tp2": None,
             "tp3": None,
-            "risk_distance": None,
-            "rr": {
-                "tp1": None,
-                "tp2": None,
-                "tp3": None,
-            },
+            "rr": None,
         }
 
-    tp1 = entry - risk * 1.0
-    tp2 = entry - risk * 2.0
-    tp3 = entry - risk * 3.0
-
     return {
-        "valid": True,
         "entry": _clean_number(entry),
         "sl": _clean_number(sl),
         "tp1": _clean_number(tp1),
         "tp2": _clean_number(tp2),
         "tp3": _clean_number(tp3),
-        "risk_distance": _clean_number(risk),
-        "rr": {
-            "tp1": 1.0,
-            "tp2": 2.0,
-            "tp3": 3.0,
-        },
+        "rr": _clean_number(rr),
     }
 
 
@@ -535,7 +937,6 @@ def calculate_trade_levels(
 # ============================================================
 
 def _quality_engine(
-    *,
     trend_score: float,
     structure_score: float,
     momentum_score: float,
@@ -556,13 +957,12 @@ def _quality_engine(
         + levels_score * 0.15
     )
 
-    # Conflict penalty
-    quality *= (
-        1.0 - min(
-            0.50,
-            max(0.0, conflict),
-        )
+    conflict_penalty = 1.0 - min(
+        0.50,
+        max(0.0, conflict),
     )
+
+    quality *= conflict_penalty
 
     return max(
         0.0,
@@ -579,174 +979,185 @@ def _quality_engine(
 
 def analyze_market(
     df: pd.DataFrame,
-    *,
     symbol: str = "UNKNOWN",
-    timeframe: str = "UNKNOWN",
+    timeframe: str = "M15",
     mtf_bias: str = "NEUTRAL",
 ) -> dict:
 
-    data = _prepare_dataframe(df)
-
     # --------------------------------------------------------
-    # Indicators
+    # Prepare
     # --------------------------------------------------------
 
-    data = add_indicators(data)
+    data = _prepare_dataframe(
+        df
+    )
 
-    if data.empty:
-        raise ValueError(
-            "Không còn dữ liệu sau khi tính indicators"
-        )
+    data = _ensure_indicators(
+        data
+    )
+
+    # --------------------------------------------------------
+    # Latest values
+    # --------------------------------------------------------
 
     latest = data.iloc[-1]
 
     close = _safe(
-        latest.get("close"),
-        0.0,
+        latest["close"]
     )
-
-    if close <= 0:
-        raise ValueError(
-            "Giá hiện tại không hợp lệ"
-        )
-
-    # --------------------------------------------------------
-    # Technical components
-    # --------------------------------------------------------
-
-    structure = _component(
-        detect_structure(data)
-    )
-
-    levels = _component(
-        detect_levels(data)
-    )
-
-    candle = _component(
-        detect_candle(data)
-    )
-
-    regime = _component(
-        detect_regime(data)
-    )
-
-    volume = _component(
-        analyze_volume(data)
-    )
-
-    # --------------------------------------------------------
-    # Indicators
-    # --------------------------------------------------------
 
     ema20 = _safe(
-        latest.get("EMA20"),
-        0.0,
+        latest["EMA20"]
     )
 
     ema50 = _safe(
-        latest.get("EMA50"),
-        0.0,
+        latest["EMA50"]
     )
 
     ema200 = _safe(
-        latest.get("EMA200"),
-        0.0,
+        latest["EMA200"]
     )
 
     rsi = _safe(
-        latest.get("RSI14"),
-        50.0,
+        latest["RSI14"]
     )
 
     macd = _safe(
-        latest.get("MACD"),
-        0.0,
+        latest["MACD"]
     )
 
     macd_signal = _safe(
-        latest.get("MACD_SIGNAL"),
-        0.0,
+        latest["MACD_SIGNAL"]
     )
 
     atr = _safe(
-        latest.get("ATR14"),
-        0.0,
+        latest["ATR14"]
     )
 
-    # --------------------------------------------------------
-    # Component signals
-    # --------------------------------------------------------
+    # ========================================================
+    # EXTERNAL MODULES
+    # ========================================================
+
+    structure = {}
+
+    try:
+        structure = _component(
+            detect_structure(data)
+        )
+    except Exception as exc:
+        structure = {
+            "signal": "NEUTRAL",
+            "error": str(exc),
+        }
+
+    levels = {}
+
+    try:
+        levels = _component(
+            detect_levels(data)
+        )
+    except Exception as exc:
+        levels = {
+            "signal": "NEUTRAL",
+            "error": str(exc),
+        }
+
+    candle = {}
+
+    try:
+        candle = _component(
+            detect_candle(data)
+        )
+    except Exception as exc:
+        candle = {
+            "signal": "NEUTRAL",
+            "error": str(exc),
+        }
+
+    regime = {}
+
+    try:
+        regime = _component(
+            detect_regime(data)
+        )
+    except Exception as exc:
+        regime = {
+            "signal": "NEUTRAL",
+            "error": str(exc),
+        }
+
+    volume = {}
+
+    try:
+        volume = _component(
+            analyze_volume(data)
+        )
+    except Exception as exc:
+        volume = {
+            "signal": "NEUTRAL",
+            "error": str(exc),
+        }
+
+    # ========================================================
+    # MODULE SIGNALS
+    # ========================================================
 
     structure_signal = _signal_from_component(
         structure
-    )
-
-    regime_signal = _signal_from_component(
-        regime
     )
 
     candle_signal = _signal_from_component(
         candle
     )
 
+    regime_signal = _signal_from_component(
+        regime
+    )
+
     volume_signal = _signal_from_component(
         volume
     )
 
-    # --------------------------------------------------------
-    # Scores
-    # --------------------------------------------------------
+    # ========================================================
+    # TREND
+    # ========================================================
 
     buy_score = 0.0
     sell_score = 0.0
-
-    breakdown = {}
-
-    # --------------------------------------------------------
-    # TREND
-    # --------------------------------------------------------
 
     trend_buy = 0.0
     trend_sell = 0.0
 
     if ema20 > ema50:
         trend_buy += 25
-    else:
+
+    elif ema20 < ema50:
         trend_sell += 25
 
     if ema50 > ema200:
         trend_buy += 25
-    else:
+
+    elif ema50 < ema200:
         trend_sell += 25
 
     if close > ema20:
         trend_buy += 20
-    else:
+
+    elif close < ema20:
         trend_sell += 20
 
     if close > ema200:
         trend_buy += 30
-    else:
+
+    elif close < ema200:
         trend_sell += 30
 
     buy_score += trend_buy
     sell_score += trend_sell
 
-    breakdown["trend"] = {
-        "buy": round(trend_buy, 2),
-        "sell": round(trend_sell, 2),
-        "signal": (
-            "BUY"
-            if trend_buy > trend_sell
-            else "SELL"
-            if trend_sell > trend_buy
-            else "NEUTRAL"
-        ),
-    }
-
-    # --------------------------------------------------------
+    # ========================================================
     # MOMENTUM
-    # --------------------------------------------------------
+    # ========================================================
 
     momentum_buy = 0.0
     momentum_sell = 0.0
@@ -757,28 +1168,26 @@ def analyze_market(
     elif rsi <= 45:
         momentum_sell += 50
 
+    else:
+        momentum_buy += 25
+        momentum_sell += 25
+
     if macd > macd_signal:
         momentum_buy += 50
-    else:
+
+    elif macd < macd_signal:
         momentum_sell += 50
+
+    else:
+        momentum_buy += 25
+        momentum_sell += 25
 
     buy_score += momentum_buy
     sell_score += momentum_sell
 
-    breakdown["momentum"] = {
-        "buy": round(momentum_buy, 2),
-        "sell": round(momentum_sell, 2),
-        "rsi": round(rsi, 2),
-        "macd": round(macd, 8),
-        "macd_signal": round(
-            macd_signal,
-            8,
-        ),
-    }
-
-    # --------------------------------------------------------
+    # ========================================================
     # STRUCTURE
-    # --------------------------------------------------------
+    # ========================================================
 
     structure_score = _score_component(
         structure
@@ -786,29 +1195,17 @@ def analyze_market(
 
     if structure_signal == "BUY":
         buy_score += 100
+
     elif structure_signal == "SELL":
         sell_score += 100
 
-    breakdown["structure"] = {
-        "signal": structure_signal,
-        "score": round(
-            structure_score,
-            2,
-        ),
-        "bos": structure.get("bos"),
-        "bos_direction": structure.get(
-            "bos_direction"
-        ),
-        "choch": structure.get("choch"),
-        "choch_direction": structure.get(
-            "choch_direction"
-        ),
-        "trend": structure.get("trend"),
-    }
+    else:
+        buy_score += 25
+        sell_score += 25
 
-    # --------------------------------------------------------
+    # ========================================================
     # CANDLE
-    # --------------------------------------------------------
+    # ========================================================
 
     candle_score = _score_component(
         candle
@@ -816,23 +1213,17 @@ def analyze_market(
 
     if candle_signal == "BUY":
         buy_score += 60
+
     elif candle_signal == "SELL":
         sell_score += 60
 
-    breakdown["candlestick"] = {
-        "signal": candle_signal,
-        "pattern": candle.get(
-            "pattern"
-        ),
-        "strength": round(
-            candle_score,
-            2,
-        ),
-    }
+    else:
+        buy_score += 30
+        sell_score += 30
 
-    # --------------------------------------------------------
+    # ========================================================
     # VOLUME
-    # --------------------------------------------------------
+    # ========================================================
 
     volume_score = _score_component(
         volume
@@ -840,26 +1231,17 @@ def analyze_market(
 
     if volume_signal == "BUY":
         buy_score += 50
+
     elif volume_signal == "SELL":
         sell_score += 50
 
-    breakdown["volume"] = {
-        "signal": volume_signal,
-        "strength": round(
-            volume_score,
-            2,
-        ),
-        "volume_ratio": _clean_number(
-            volume.get("volume_ratio")
-        ),
-        "volume_spike": bool(
-            volume.get("volume_spike", False)
-        ),
-    }
+    else:
+        buy_score += 25
+        sell_score += 25
 
-    # --------------------------------------------------------
+    # ========================================================
     # REGIME
-    # --------------------------------------------------------
+    # ========================================================
 
     regime_score = _score_component(
         regime
@@ -867,120 +1249,91 @@ def analyze_market(
 
     if regime_signal == "BUY":
         buy_score += 50
+
     elif regime_signal == "SELL":
         sell_score += 50
 
-    breakdown["regime"] = {
-        "signal": regime_signal,
-        "trend": regime.get("trend"),
-        "volatility": regime.get(
-            "volatility"
-        ),
-        "atr_pct": _clean_number(
-            regime.get("atr_pct")
-        ),
-        "strength": round(
-            regime_score,
-            2,
-        ),
-    }
+    else:
+        buy_score += 25
+        sell_score += 25
 
-    # --------------------------------------------------------
+    # ========================================================
     # LEVELS
-    # --------------------------------------------------------
+    # ========================================================
 
-    support = _to_list(
-        levels.get("support")
+    levels_signal = _signal_from_component(
+        levels
     )
 
-    resistance = _to_list(
-        levels.get("resistance")
+    levels_score = _score_component(
+        levels
     )
 
-    nearest_support = _safe(
-        levels.get("nearest_support"),
-        math.nan,
-    )
+    if levels_signal == "BUY":
 
-    nearest_resistance = _safe(
-        levels.get("nearest_resistance"),
-        math.nan,
-    )
+        buy_score += 50
 
-    levels_buy = 0.0
-    levels_sell = 0.0
+    elif levels_signal == "SELL":
 
-    if math.isfinite(nearest_support):
-        if close > nearest_support:
-            levels_buy += 50
+        sell_score += 50
 
-    if math.isfinite(nearest_resistance):
-        if close < nearest_resistance:
-            levels_sell += 50
+    else:
 
-    if levels_buy == 0 and levels_sell == 0:
-        levels_buy = 25
-        levels_sell = 25
+        # Detect support / resistance fields
+        nearest_support = None
+        nearest_resistance = None
 
-    buy_score += levels_buy
-    sell_score += levels_sell
+        if isinstance(levels, dict):
 
-    levels_score = max(
-        levels_buy,
-        levels_sell,
-    )
+            for key in (
+                "nearest_support",
+                "support",
+                "support_price",
+            ):
+                if key in levels:
+                    nearest_support = _safe(
+                        levels.get(key),
+                        0.0,
+                    )
 
-    breakdown["levels"] = {
-        "buy": round(levels_buy, 2),
-        "sell": round(levels_sell, 2),
-        "support": [
-            _clean_number(x)
-            for x in support
-        ],
-        "resistance": [
-            _clean_number(x)
-            for x in resistance
-        ],
-        "nearest_support":
-            _clean_number(
-                nearest_support
-            ),
-        "nearest_resistance":
-            _clean_number(
-                nearest_resistance
-            ),
-    }
+                    if nearest_support > 0:
+                        break
 
-    # --------------------------------------------------------
-    # NORMALIZE SCORES
-    # --------------------------------------------------------
+            for key in (
+                "nearest_resistance",
+                "resistance",
+                "resistance_price",
+            ):
+                if key in levels:
+                    nearest_resistance = _safe(
+                        levels.get(key),
+                        0.0,
+                    )
 
-    max_score = max(
-        buy_score,
-        sell_score,
-        1.0,
-    )
+                    if nearest_resistance > 0:
+                        break
 
-    buy_norm = (
-        buy_score / max_score * 100
-    )
+        if (
+            nearest_support
+            and close > nearest_support
+        ):
+            buy_score += 50
 
-    sell_norm = (
-        sell_score / max_score * 100
-    )
+        elif (
+            nearest_resistance
+            and close < nearest_resistance
+        ):
+            sell_score += 50
 
-    # --------------------------------------------------------
+        else:
+            buy_score += 25
+            sell_score += 25
+
+    # ========================================================
     # RAW SIGNAL
-    # --------------------------------------------------------
+    # ========================================================
 
-    total_directional = (
-        buy_score + sell_score
-    )
-
-    if total_directional <= 0:
-        raw_signal = "NEUTRAL"
-
-    elif buy_score > sell_score:
+    if buy_score > sell_score:
         raw_signal = "BUY"
 
     elif sell_score > buy_score:
@@ -989,73 +1342,70 @@ def analyze_market(
     else:
         raw_signal = "NEUTRAL"
 
-    # --------------------------------------------------------
-    # CONFLICT ENGINE
-    # --------------------------------------------------------
+    # ========================================================
+    # CONFLICT
+    # ========================================================
 
-    directional_signals = [
-        trend_signal
-        for trend_signal in [
-            breakdown["trend"]["signal"],
-            structure_signal,
-            candle_signal,
-            volume_signal,
-            regime_signal,
-        ]
-        if trend_signal in (
-            "BUY",
-            "SELL",
-        )
+    module_signals = [
+        structure_signal,
+        candle_signal,
+        volume_signal,
+        regime_signal,
     ]
 
-    conflict = 0.0
-
-    if directional_signals:
-
-        buy_votes = directional_signals.count(
-            "BUY"
-        )
-
-        sell_votes = directional_signals.count(
-            "SELL"
-        )
-
-        total_votes = (
-            buy_votes + sell_votes
-        )
-
-        conflict = min(
-            buy_votes,
-            sell_votes,
-        ) / max(
-            total_votes,
-            1,
-        )
-
-    # --------------------------------------------------------
-    # QUALITY
-    # --------------------------------------------------------
-
-    trend_score = max(
-        trend_buy,
-        trend_sell,
+    buy_votes = sum(
+        1
+        for signal in module_signals
+        if signal == "BUY"
     )
 
-    momentum_score = max(
-        momentum_buy,
-        momentum_sell,
+    sell_votes = sum(
+        1
+        for signal in module_signals
+        if signal == "SELL"
+    )
+
+    directional_votes = (
+        buy_votes + sell_votes
+    )
+
+    if directional_votes > 0:
+        conflict = (
+            min(
+                buy_votes,
+                sell_votes,
+            )
+            / directional_votes
+        )
+    else:
+        conflict = 0.0
+
+    # ========================================================
+    # QUALITY
+    # ========================================================
+
+    trend_quality = (
+        max(
+            trend_buy,
+            trend_sell,
+        )
+        / 100.0
+        * 100.0
+    )
+
+    momentum_quality = (
+        max(
+            momentum_buy,
+            momentum_sell,
+        )
+        / 100.0
+        * 100.0
     )
 
     quality = _quality_engine(
-        trend_score=min(
-            100,
-            trend_score,
-        ),
+        trend_score=trend_quality,
         structure_score=structure_score,
-        momentum_score=min(
-            100,
-            momentum_score,
-        ),
+        momentum_score=momentum_quality,
         volume_score=volume_score,
         candle_score=candle_score,
         regime_score=regime_score,
@@ -1063,22 +1413,33 @@ def analyze_market(
         conflict=conflict,
     )
 
-    # --------------------------------------------------------
-    # CONFIDENCE
-    # --------------------------------------------------------
+    # ========================================================
+    # DIRECTIONAL EDGE
+    # ========================================================
 
-    if total_directional > 0:
+    total_score = (
+        buy_score + sell_score
+    )
 
-        directional_confidence = (
+    if total_score > 0:
+
+        directional_edge = (
             abs(
                 buy_score - sell_score
             )
-            / total_directional
-            * 100
+            / total_score
         )
 
     else:
-        directional_confidence = 0.0
+        directional_edge = 0.0
+
+    # ========================================================
+    # CONFIDENCE
+    # ========================================================
+
+    directional_confidence = (
+        directional_edge * 100.0
+    )
 
     confidence = (
         directional_confidence * 0.60
@@ -1093,9 +1454,9 @@ def analyze_market(
         ),
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # VALIDATION
-    # --------------------------------------------------------
+    # ========================================================
 
     validation = _validate_signal(
         raw_signal=raw_signal,
@@ -1108,234 +1469,264 @@ def analyze_market(
         regime_signal=regime_signal,
         candle_signal=candle_signal,
         volume_signal=volume_signal,
-        mtf_bias=_text(
-            mtf_bias,
-            "NEUTRAL",
-        ).upper(),
+        mtf_bias=mtf_bias,
     )
 
-    signal = validation[
+    final_signal = validation[
         "final_signal"
     ]
 
-    # --------------------------------------------------------
+    # ========================================================
     # TRADE LEVELS
-    # --------------------------------------------------------
+    # ========================================================
 
     trade_levels = calculate_trade_levels(
-        signal=signal,
-        entry=close,
-        atr=atr,
-        support=support,
-        resistance=resistance,
+        data,
+        final_signal,
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # REASONING
-    # --------------------------------------------------------
+    # ========================================================
 
-    reasoning = []
+    reasoning: list[str] = []
 
-    if trend_buy > trend_sell:
+    if ema20 > ema50:
         reasoning.append(
-            "EMA đang nghiêng về xu hướng tăng."
+            "EMA20 > EMA50: xu hướng tăng"
         )
 
-    elif trend_sell > trend_buy:
+    elif ema20 < ema50:
         reasoning.append(
-            "EMA đang nghiêng về xu hướng giảm."
+            "EMA20 < EMA50: xu hướng giảm"
         )
 
     else:
         reasoning.append(
-            "EMA chưa cho thấy ưu thế rõ."
+            "EMA20 ≈ EMA50: xu hướng chưa rõ"
         )
 
-    if rsi >= 55:
+    if rsi >= 70:
         reasoning.append(
-            f"RSI {rsi:.1f}: động lượng tăng."
+            f"RSI {rsi:.1f}: động lượng tăng mạnh"
+        )
+
+    elif rsi >= 55:
+        reasoning.append(
+            f"RSI {rsi:.1f}: động lượng tăng"
+        )
+
+    elif rsi <= 30:
+        reasoning.append(
+            f"RSI {rsi:.1f}: động lượng giảm mạnh"
         )
 
     elif rsi <= 45:
         reasoning.append(
-            f"RSI {rsi:.1f}: động lượng giảm."
+            f"RSI {rsi:.1f}: động lượng giảm"
         )
 
     else:
         reasoning.append(
-            f"RSI {rsi:.1f}: động lượng trung tính."
+            f"RSI {rsi:.1f}: trung tính"
         )
 
     if macd > macd_signal:
         reasoning.append(
-            "MACD bullish."
+            "MACD bullish"
+        )
+
+    elif macd < macd_signal:
+        reasoning.append(
+            "MACD bearish"
         )
 
     else:
         reasoning.append(
-            "MACD bearish."
+            "MACD neutral"
         )
 
     reasoning.append(
-        f"Market Structure: {structure_signal}."
+        f"Market Structure: {structure_signal}"
     )
 
     reasoning.append(
-        f"Candlestick: {candle_signal}."
+        f"Nến: {candle_signal}"
     )
 
     reasoning.append(
-        f"Volume: {volume_signal}."
+        f"Volume: {volume_signal}"
     )
 
     reasoning.append(
-        f"Regime: {regime_signal}."
+        f"Regime: {regime_signal}"
     )
 
-    reasoning.append(
-        f"MTF bias: {_text(mtf_bias, 'NEUTRAL').upper()}."
-    )
-
-    if validation["validation_passed"]:
+    if mtf_bias != "NEUTRAL":
         reasoning.append(
-            "Signal vượt qua toàn bộ lớp validation."
+            f"MTF Bias: {mtf_bias}"
         )
 
-    else:
-        for reason in validation[
-            "validation_reasons"
-        ]:
-            reasoning.append(
-                f"Validation: {reason}."
-            )
+    for reason in validation[
+        "validation_reasons"
+    ]:
+        reasoning.append(
+            f"Validation: {reason}"
+        )
 
-    # --------------------------------------------------------
-    # RESULT
-    # --------------------------------------------------------
+    # ========================================================
+    # INDICATORS
+    # ========================================================
 
-    return {
-        "symbol": symbol,
-        "timeframe": timeframe,
+    indicators = {
+        "EMA20": _clean_number(
+            ema20
+        ),
+        "EMA50": _clean_number(
+            ema50
+        ),
+        "EMA200": _clean_number(
+            ema200
+        ),
+        "RSI14": _clean_number(
+            rsi
+        ),
+        "MACD": _clean_number(
+            macd
+        ),
+        "MACD_SIGNAL": _clean_number(
+            macd_signal
+        ),
+        "ATR14": _clean_number(
+            atr
+        ),
+    }
 
-        "signal": signal,
+    # ========================================================
+    # BREAKDOWN
+    # ========================================================
+
+    breakdown = {
+        "trend": {
+            "buy": _clean_number(
+                trend_buy
+            ),
+            "sell": _clean_number(
+                trend_sell
+            ),
+            "signal": (
+                "BUY"
+                if trend_buy > trend_sell
+                else "SELL"
+                if trend_sell > trend_buy
+                else "NEUTRAL"
+            ),
+        },
+        "momentum": {
+            "buy": _clean_number(
+                momentum_buy
+            ),
+            "sell": _clean_number(
+                momentum_sell
+            ),
+            "signal": (
+                "BUY"
+                if momentum_buy > momentum_sell
+                else "SELL"
+                if momentum_sell > momentum_buy
+                else "NEUTRAL"
+            ),
+        },
+        "structure": structure,
+        "candlestick": candle,
+        "volume": volume,
+        "regime": regime,
+        "levels": levels,
+    }
+
+    # ========================================================
+    # FINAL RESULT
+    # ========================================================
+
+    result = {
+        "symbol": str(symbol),
+        "timeframe": str(timeframe),
+
+        # Main signal
+        "signal": final_signal,
+        "final_signal": final_signal,
         "raw_signal": raw_signal,
 
-        "confidence": round(
-            confidence,
-            2,
+        # Confidence / quality
+        "confidence": _clean_number(
+            confidence
+        ),
+        "signal_quality": _clean_number(
+            quality
+        ),
+        "directional_edge": _clean_number(
+            directional_edge
+        ),
+        "conflict": _clean_number(
+            conflict
         ),
 
-        "signal_quality": round(
-            quality,
-            2,
+        # Scores
+        "buy_score": _clean_number(
+            buy_score
+        ),
+        "sell_score": _clean_number(
+            sell_score
         ),
 
-        "directional_edge": round(
-            validation[
-                "directional_edge"
-            ],
-            4,
-        ),
-
-        "conflict": round(
-            conflict,
-            4,
-        ),
-
-        "buy_score": round(
-            buy_norm,
-            2,
-        ),
-
-        "sell_score": round(
-            sell_norm,
-            2,
-        ),
-
+        # Price
         "price": _clean_number(
             close
         ),
 
-        "entry": trade_levels[
+        # Trade levels
+        "entry": trade_levels.get(
             "entry"
-        ],
-
-        "sl": trade_levels[
+        ),
+        "sl": trade_levels.get(
             "sl"
-        ],
-
-        "tp1": trade_levels[
+        ),
+        "tp1": trade_levels.get(
             "tp1"
-        ],
-
-        "tp2": trade_levels[
+        ),
+        "tp2": trade_levels.get(
             "tp2"
-        ],
-
-        "tp3": trade_levels[
+        ),
+        "tp3": trade_levels.get(
             "tp3"
-        ],
-
-        "rr": trade_levels[
+        ),
+        "rr": trade_levels.get(
             "rr"
-        ],
-
+        ),
         "trade_levels": trade_levels,
 
+        # Analysis
         "validation": validation,
-
         "breakdown": breakdown,
-
         "reasoning": reasoning,
-
-        "indicators": {
-            "ema20": _clean_number(
-                ema20
-            ),
-            "ema50": _clean_number(
-                ema50
-            ),
-            "ema200": _clean_number(
-                ema200
-            ),
-            "rsi14": _clean_number(
-                rsi
-            ),
-            "macd": _clean_number(
-                macd
-            ),
-            "macd_signal":
-                _clean_number(
-                    macd_signal
-                ),
-            "atr14": _clean_number(
-                atr
-            ),
-        },
+        "indicators": indicators,
 
         "modules": {
-            "trend": breakdown[
-                "trend"
-            ],
-            "momentum": breakdown[
-                "momentum"
-            ],
-            "structure": breakdown[
-                "structure"
-            ],
-            "candlestick": breakdown[
-                "candlestick"
-            ],
-            "volume": breakdown[
-                "volume"
-            ],
-            "regime": breakdown[
-                "regime"
-            ],
-            "levels": breakdown[
-                "levels"
-            ],
+            "structure": structure_signal,
+            "candlestick": candle_signal,
+            "volume": volume_signal,
+            "regime": regime_signal,
+            "levels": levels_signal,
         },
 
+        # Metadata
         "analysis_only": True,
+        "execution": False,
+        "order_placement": False,
+        "engine": {
+            "version": "6.3",
+            "type": "raw_aware_quality_weighted",
+        },
     }
+
+    return _json_safe(result)
