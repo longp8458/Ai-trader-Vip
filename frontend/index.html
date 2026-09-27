@@ -1,89 +1,4618 @@
-<!doctype html>
+﻿<!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TraderAI V7.1 High-Conviction</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>NovaTrade AI V7.2</title>
+
 <style>
-:root{--bg:#050a12;--p:#0b1624;--p2:#0e1b2c;--line:#20334a;--txt:#eaf4ff;--muted:#7890aa;--cyan:#19d9ff;--green:#19d58b;--red:#ff5577;--yellow:#ffd166}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -20%,#173250,#050a12 48%);color:var(--txt);font:13px Segoe UI,Arial,sans-serif}.top{height:64px;padding:0 15px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--line);background:#050b13ee;position:sticky;top:0;z-index:5}.brand{display:flex;gap:10px;align-items:center;min-width:260px}.logo{width:37px;height:37px;border-radius:11px;background:linear-gradient(135deg,var(--cyan),#6585ff)}.brand b{font-size:16px}.brand small{display:block;color:var(--muted);font-size:8px}.nav{display:flex;gap:4px;flex:1}.btn,.tf,.tab{border:1px solid transparent;background:#091522;color:#8296ae;border-radius:7px;padding:8px 10px;cursor:pointer}.btn:hover,.on,.tf.on,.tab.on{background:#102238;color:#e4fbff;border-color:#21445e}.live{color:#8df3c8;background:#081b16;border:1px solid #1d513e;border-radius:8px;padding:8px 10px;font-size:9px;font-weight:800}.layout{max-width:1900px;margin:auto;padding:10px;display:grid;grid-template-columns:260px minmax(500px,1fr) 350px;gap:10px}.col{display:flex;flex-direction:column;gap:10px}.panel{background:linear-gradient(180deg,#0d1929f7,#08111df7);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 14px 40px #0005}.head{padding:11px 12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.title{font-weight:900;font-size:12px}.title small{display:block;color:var(--muted);font-size:8px;margin-top:3px}.search{margin:9px;width:calc(100% - 18px);height:34px;background:#07111d;border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:0 9px}.tabs{display:flex;gap:4px;padding:0 9px 8px}.tab{flex:1;font-size:8px;padding:7px 2px}.watchhead,.row{display:grid;grid-template-columns:1.2fr .9fr .8fr .55fr;gap:5px;align-items:center}.watchhead{padding:6px 9px;color:#60748d;font-size:8px}.row{padding:8px 9px;border-top:1px solid #1b2c4233;font-size:9px;cursor:pointer}.row:hover,.row.sel{background:#0d1d30;box-shadow:inset 2px 0 var(--cyan)}.sym{font-weight:800}.src{color:#647891;font-size:7px}.buy{color:var(--green)}.sell{color:var(--red)}.neutral{color:#a2afbe}.hero{padding:13px;display:flex;justify-content:space-between;border-bottom:1px solid var(--line)}.asset{font-size:19px;font-weight:900}.hero small{color:var(--muted);font-size:8px}.price{text-align:right;font-size:23px;font-weight:900}.tools{display:flex;gap:4px;flex-wrap:wrap;padding:8px;border-bottom:1px solid var(--line);background:#07111c}.tf{font-size:8px;padding:7px 6px}.chart{height:450px}.chart iframe{width:100%;height:100%;border:0}.summary{display:grid;grid-template-columns:1.1fr .9fr;gap:9px;padding:9px}.card{background:#091522;border:1px solid var(--line);border-radius:9px;padding:11px}.label{font-size:8px;color:#6c8099;text-transform:uppercase}.signal{font-size:25px;font-weight:950;margin:5px 0}.badge{display:inline-block;padding:4px 7px;border-radius:6px;font-size:8px;font-weight:900;border:1px solid var(--line)}.badge.on{color:var(--green);border-color:#1d513e;background:#081b16}.badge.off{color:var(--yellow)}.levels{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:8px}.level,.mini,.zone,.stat{background:#0b1725;border:1px solid var(--line);border-radius:7px;padding:7px;text-align:center}.level b,.mini small,.stat small{display:block;font-size:7px;color:#657992}.level span{font-size:9px}.reason{font-size:9px;color:#9eafc3;padding:6px 0 6px 9px;border-bottom:1px solid #1b2c4233}.gaugebox{text-align:center;padding:13px}.gauge{width:135px;height:135px;margin:5px auto 9px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--cyan) var(--pct,0%),#17283b 0);position:relative}.gauge:after{content:"";position:absolute;width:106px;height:106px;border-radius:50%;background:#091522;border:1px solid #20344a}.gaugein{z-index:1}.gaugein b{font-size:27px}.gaugein small{display:block;color:#6e8198;font-size:8px}.trends{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.trend{background:#0b1725;border:1px solid var(--line);border-radius:7px;padding:7px}.trend small{display:block;color:#657992;font-size:7px}.mtf{padding:5px 10px 10px}.mtfrow{display:grid;grid-template-columns:38px 1fr 70px;gap:6px;align-items:center;padding:8px 1px;border-bottom:1px solid #1b2c4233;font-size:9px}.bar{height:5px;background:#17263a;border-radius:8px;overflow:hidden}.bar i{display:block;height:100%;background:var(--cyan)}.rightlist{padding:3px 11px 9px}.ind{display:flex;justify-content:space-between;padding:8px 1px;border-bottom:1px solid #1b2c4233;font-size:9px}.ind span{color:#7f92aa}.backend{padding:8px 11px;color:#657992;font-size:8px}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#718096}.dot.ok{background:var(--green)}.dot.bad{background:var(--red)}.dot.busy{background:var(--yellow)}.section{margin:10px}.zone-grid,.settings{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px}.zone{text-align:left}.zone b{font-size:9px}.zone small,.setting small{display:block;color:#70859e;font-size:8px;margin-top:4px}.news,.history{padding:10px;overflow:auto}.news-item{padding:8px 1px;border-bottom:1px solid #1b2c4233}.news-item a{color:#dcefff;text-decoration:none;font-size:9px;font-weight:800}.news-item small{display:block;color:#60758d;font-size:7px;margin-top:4px}.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:10px}.stat{text-align:left}.stat b{font-size:14px}.history table{width:100%;min-width:1050px;border-collapse:collapse}.history th,.history td{padding:7px;border-bottom:1px solid #1b2c4233;text-align:left;font-size:8px;white-space:nowrap}.history th{color:#7890aa}.setting{background:#0b1725;border:1px solid var(--line);border-radius:7px;padding:8px}.setting b{font-size:9px}.footer{text-align:center;color:#566a82;font-size:8px;padding:12px;border-top:1px solid var(--line)}.modal{display:none;position:fixed;inset:0;background:#0009;place-items:center;z-index:20;padding:15px}.modalbox{width:min(620px,94vw);padding:14px}.toast{position:fixed;right:15px;bottom:15px;background:#0b1725;border:1px solid #23415d;padding:10px;border-radius:8px;display:none;z-index:30;font-size:9px}.scoregrid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:8px}.mini{text-align:center}.mini b{font-size:10px}.enginegrid{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:7px 0}@media(max-width:1200px){.layout{grid-template-columns:250px 1fr}.right{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr}}@media(max-width:780px){.nav{display:none}.layout{display:flex;flex-direction:column}.right{display:flex}.summary{grid-template-columns:1fr}.chart{height:380px}.stats{grid-template-columns:repeat(3,1fr)}.settings,.zone-grid{grid-template-columns:1fr}}
+:root{
+    --bg:#071018;
+    --bg2:#0b151f;
+    --panel:#0d1a25;
+    --panel2:#101f2d;
+    --border:#1b3446;
+    --text:#e7f5ff;
+    --muted:#7f9aae;
+    --cyan:#00d9ff;
+    --blue:#258cff;
+    --green:#16d98a;
+    --red:#ff4f70;
+    --yellow:#ffc857;
+    --orange:#ff9f43;
+    --shadow:0 12px 35px rgba(0,0,0,.25);
+}
+
+*{
+    box-sizing:border-box;
+}
+
+html,body{
+    margin:0;
+    padding:0;
+    width:100%;
+    min-height:100%;
+    background:
+        radial-gradient(circle at 15% 10%,rgba(0,217,255,.06),transparent 30%),
+        radial-gradient(circle at 85% 20%,rgba(37,140,255,.06),transparent 30%),
+        var(--bg);
+    color:var(--text);
+    font-family:Inter,Segoe UI,Arial,sans-serif;
+}
+
+body{
+    min-height:100vh;
+}
+
+button,
+input,
+select{
+    font:inherit;
+}
+
+button{
+    cursor:pointer;
+}
+
+.app{
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+}
+
+/* ================= HEADER ================= */
+
+.header{
+    height:72px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 22px;
+    border-bottom:1px solid var(--border);
+    background:rgba(7,16,24,.92);
+    backdrop-filter:blur(15px);
+    position:sticky;
+    top:0;
+    z-index:100;
+}
+
+.brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.logo{
+    width:42px;
+    height:42px;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:21px;
+    font-weight:900;
+    background:linear-gradient(135deg,var(--cyan),var(--blue));
+    color:#001018;
+    box-shadow:0 0 25px rgba(0,217,255,.25);
+}
+
+.brand-title{
+    font-size:18px;
+    font-weight:900;
+    letter-spacing:.3px;
+}
+
+.brand-sub{
+    color:var(--muted);
+    font-size:11px;
+    margin-top:2px;
+}
+
+.header-right{
+    display:flex;
+    align-items:center;
+    gap:9px;
+}
+
+.badge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    border:1px solid var(--border);
+    background:var(--panel);
+    border-radius:999px;
+    padding:7px 11px;
+    font-size:11px;
+    font-weight:800;
+}
+
+.live-dot{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:var(--green);
+    box-shadow:0 0 9px var(--green);
+}
+
+.analysis-badge{
+    color:var(--cyan);
+}
+
+.header-btn{
+    border:1px solid var(--border);
+    color:var(--text);
+    background:var(--panel);
+    padding:8px 12px;
+    border-radius:9px;
+}
+
+.header-btn:hover{
+    border-color:var(--cyan);
+}
+
+/* ================= NAV ================= */
+
+.nav{
+    height:48px;
+    display:flex;
+    align-items:center;
+    gap:4px;
+    padding:0 22px;
+    border-bottom:1px solid var(--border);
+    background:#09141e;
+}
+
+.nav button{
+    border:0;
+    background:transparent;
+    color:var(--muted);
+    padding:8px 15px;
+    border-radius:8px;
+    font-weight:700;
+}
+
+.nav button:hover,
+.nav button.active{
+    color:var(--cyan);
+    background:rgba(0,217,255,.07);
+}
+
+/* ================= MAIN ================= */
+
+.main{
+    display:grid;
+    grid-template-columns:270px minmax(0,1fr);
+    flex:1;
+}
+
+/* ================= SIDEBAR ================= */
+
+.sidebar{
+    border-right:1px solid var(--border);
+    background:rgba(8,18,27,.8);
+    min-height:calc(100vh - 120px);
+    overflow-y:auto;
+}
+
+.sidebar-top{
+    padding:16px;
+    border-bottom:1px solid var(--border);
+}
+
+.sidebar-title{
+    font-size:12px;
+    font-weight:900;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.8px;
+    margin-bottom:12px;
+}
+
+.tabs{
+    display:flex;
+    gap:5px;
+}
+
+.tab{
+    flex:1;
+    padding:7px 4px;
+    border:1px solid var(--border);
+    border-radius:7px;
+    background:var(--panel);
+    color:var(--muted);
+    font-size:10px;
+    font-weight:800;
+}
+
+.tab.active{
+    color:var(--cyan);
+    border-color:rgba(0,217,255,.4);
+    background:rgba(0,217,255,.06);
+}
+
+.watchlist{
+    padding:10px;
+}
+
+.asset{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:11px 10px;
+    margin-bottom:5px;
+    border:1px solid transparent;
+    border-radius:9px;
+    background:transparent;
+    color:var(--text);
+    text-align:left;
+}
+
+.asset:hover{
+    background:var(--panel);
+    border-color:var(--border);
+}
+
+.asset.active{
+    background:linear-gradient(
+        90deg,
+        rgba(0,217,255,.12),
+        rgba(0,217,255,.03)
+    );
+    border-color:rgba(0,217,255,.25);
+}
+
+.asset-symbol{
+    font-size:12px;
+    font-weight:900;
+}
+
+.asset-name{
+    color:var(--muted);
+    font-size:9px;
+    margin-top:3px;
+}
+
+.asset-price{
+    text-align:right;
+    font-size:11px;
+    font-weight:800;
+}
+
+.asset-change{
+    font-size:9px;
+    margin-top:3px;
+}
+
+.up{
+    color:var(--green)!important;
+}
+
+.down{
+    color:var(--red)!important;
+}
+
+.neutral{
+    color:var(--yellow)!important;
+}
+
+/* ================= CONTENT ================= */
+
+.content{
+    min-width:0;
+    padding:18px;
+}
+
+.page{
+    display:none;
+}
+
+.page.active{
+    display:block;
+}
+
+/* ================= TOP BAR ================= */
+
+.toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:15px;
+    margin-bottom:15px;
+}
+
+.selected{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.selected-symbol{
+    font-size:25px;
+    font-weight:950;
+}
+
+.selected-source{
+    font-size:10px;
+    color:var(--muted);
+    margin-top:3px;
+}
+
+.toolbar-actions{
+    display:flex;
+    gap:8px;
+}
+
+.primary-btn{
+    border:1px solid rgba(0,217,255,.35);
+    background:linear-gradient(135deg,rgba(0,217,255,.16),rgba(37,140,255,.12));
+    color:var(--cyan);
+    padding:9px 13px;
+    border-radius:9px;
+    font-weight:900;
+}
+
+.secondary-btn{
+    border:1px solid var(--border);
+    background:var(--panel);
+    color:var(--text);
+    padding:9px 13px;
+    border-radius:9px;
+}
+
+.primary-btn:hover,
+.secondary-btn:hover{
+    border-color:var(--cyan);
+}
+
+/* ================= STATUS ================= */
+
+.status-row{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    margin-bottom:15px;
+}
+
+.status-card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:11px;
+    padding:12px;
+}
+
+.status-label{
+    font-size:9px;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-weight:900;
+    letter-spacing:.6px;
+}
+
+.status-value{
+    margin-top:6px;
+    font-size:13px;
+    font-weight:900;
+}
+
+.status-small{
+    margin-top:3px;
+    font-size:9px;
+    color:var(--muted);
+}
+
+/* ================= GRID ================= */
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(12,1fr);
+    gap:12px;
+}
+
+.card{
+    background:
+        linear-gradient(
+            145deg,
+            rgba(16,31,45,.95),
+            rgba(10,23,34,.95)
+        );
+    border:1px solid var(--border);
+    border-radius:13px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+}
+
+.card-header{
+    padding:13px 15px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:1px solid var(--border);
+}
+
+.card-title{
+    font-size:12px;
+    font-weight:950;
+}
+
+.card-sub{
+    font-size:9px;
+    color:var(--muted);
+    margin-top:3px;
+}
+
+.card-body{
+    padding:15px;
+}
+
+.col-12{
+    grid-column:span 12;
+}
+
+.col-8{
+    grid-column:span 8;
+}
+
+.col-7{
+    grid-column:span 7;
+}
+
+.col-6{
+    grid-column:span 6;
+}
+
+.col-5{
+    grid-column:span 5;
+}
+
+.col-4{
+    grid-column:span 4;
+}
+
+/* ================= SIGNAL ================= */
+
+.signal-layout{
+    display:grid;
+    grid-template-columns:240px 1fr;
+    gap:18px;
+    align-items:center;
+}
+
+.signal-box{
+    min-height:180px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:rgba(0,0,0,.13);
+}
+
+.signal{
+    font-size:38px;
+    font-weight:1000;
+    letter-spacing:2px;
+}
+
+.signal.buy{
+    color:var(--green);
+    text-shadow:0 0 25px rgba(22,217,138,.2);
+}
+
+.signal.sell{
+    color:var(--red);
+    text-shadow:0 0 25px rgba(255,79,112,.2);
+}
+
+.signal.neutral{
+    color:var(--yellow);
+}
+
+.signal-confidence{
+    margin-top:7px;
+    font-size:11px;
+    color:var(--muted);
+}
+
+.conviction{
+    margin-top:13px;
+    padding:7px 11px;
+    border-radius:999px;
+    font-size:9px;
+    font-weight:950;
+    border:1px solid var(--border);
+}
+
+.conviction.high{
+    color:var(--green);
+    border-color:rgba(22,217,138,.3);
+    background:rgba(22,217,138,.06);
+}
+
+.conviction.normal{
+    color:var(--yellow);
+}
+
+.metrics{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:9px;
+}
+
+.metric{
+    border:1px solid var(--border);
+    border-radius:9px;
+    padding:11px;
+    background:rgba(0,0,0,.1);
+}
+
+.metric-label{
+    font-size:9px;
+    color:var(--muted);
+}
+
+.metric-value{
+    margin-top:5px;
+    font-size:13px;
+    font-weight:900;
+}
+
+/* ================= SCORE ================= */
+
+.score-wrap{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:15px;
+}
+
+.score{
+    border:1px solid var(--border);
+    border-radius:11px;
+    padding:12px;
+}
+
+.score-top{
+    display:flex;
+    justify-content:space-between;
+    font-size:10px;
+    font-weight:900;
+}
+
+.bar{
+    height:8px;
+    border-radius:999px;
+    background:#071018;
+    overflow:hidden;
+    margin-top:10px;
+}
+
+.bar-fill{
+    height:100%;
+    border-radius:999px;
+    transition:width .4s ease;
+}
+
+.buy-bar{
+    background:var(--green);
+}
+
+.sell-bar{
+    background:var(--red);
+}
+
+.edge{
+    margin-top:13px;
+    text-align:center;
+    font-size:22px;
+    font-weight:950;
+}
+
+/* ================= MTF ================= */
+
+.mtf-grid{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:7px;
+}
+
+.mtf-item{
+    padding:10px 5px;
+    text-align:center;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:rgba(0,0,0,.12);
+}
+
+.mtf-time{
+    font-size:9px;
+    color:var(--muted);
+    font-weight:900;
+}
+
+.mtf-signal{
+    margin-top:6px;
+    font-size:11px;
+    font-weight:950;
+}
+
+/* ================= INDICATORS ================= */
+
+.indicators{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:8px;
+}
+
+.indicator{
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:10px;
+}
+
+.indicator-name{
+    color:var(--muted);
+    font-size:9px;
+}
+
+.indicator-value{
+    margin-top:5px;
+    font-size:11px;
+    font-weight:900;
+}
+
+/* ================= REASONING ================= */
+
+.reasoning{
+    display:grid;
+    gap:8px;
+}
+
+.reason{
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:10px;
+    background:rgba(0,0,0,.1);
+}
+
+.reason-title{
+    font-size:10px;
+    font-weight:950;
+}
+
+.reason-text{
+    margin-top:4px;
+    color:var(--muted);
+    font-size:10px;
+    line-height:1.55;
+}
+
+/* ================= LEVELS ================= */
+
+.levels{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:8px;
+}
+
+.level{
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:10px;
+}
+
+.level-label{
+    font-size:9px;
+    color:var(--muted);
+}
+
+.level-value{
+    margin-top:5px;
+    font-weight:900;
+    font-size:12px;
+}
+
+/* ================= NEWS ================= */
+
+.news-list{
+    display:grid;
+    gap:8px;
+}
+
+.news-item{
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:10px;
+}
+
+.news-title{
+    font-size:11px;
+    font-weight:850;
+    line-height:1.4;
+}
+
+.news-meta{
+    margin-top:5px;
+    color:var(--muted);
+    font-size:9px;
+}
+
+/* ================= CHART ================= */
+
+.chart-wrap{
+    height:510px;
+    background:#09131c;
+}
+
+.chart-wrap iframe{
+    width:100%;
+    height:100%;
+    border:0;
+}
+
+/* ================= TABLE ================= */
+
+.table-wrap{
+    overflow:auto;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:750px;
+}
+
+th{
+    color:var(--muted);
+    font-size:9px;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+    font-weight:900;
+    text-align:left;
+    padding:10px;
+    border-bottom:1px solid var(--border);
+}
+
+td{
+    padding:10px;
+    font-size:10px;
+    border-bottom:1px solid rgba(27,52,70,.6);
+}
+
+.pill{
+    display:inline-flex;
+    padding:4px 7px;
+    border-radius:999px;
+    font-size:8px;
+    font-weight:950;
+}
+
+.pill.buy{
+    color:var(--green);
+    background:rgba(22,217,138,.08);
+}
+
+.pill.sell{
+    color:var(--red);
+    background:rgba(255,79,112,.08);
+}
+
+.pill.neutral{
+    color:var(--yellow);
+    background:rgba(255,200,87,.08);
+}
+
+/* ================= SETTINGS ================= */
+
+.settings{
+    display:grid;
+    gap:12px;
+}
+
+.setting{
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px;
+}
+
+.setting-title{
+    font-weight:900;
+    font-size:12px;
+}
+
+.setting-desc{
+    color:var(--muted);
+    font-size:10px;
+    line-height:1.5;
+    margin-top:4px;
+}
+
+.api-box{
+    margin-top:10px;
+    padding:10px;
+    border-radius:8px;
+    background:#071018;
+    border:1px solid var(--border);
+    color:var(--cyan);
+    font-family:Consolas,monospace;
+    font-size:10px;
+    word-break:break-all;
+}
+
+/* ================= TOAST ================= */
+
+#toast{
+    position:fixed;
+    right:20px;
+    bottom:20px;
+    z-index:9999;
+    display:none;
+    max-width:380px;
+    padding:12px 15px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:#0d1a25;
+    box-shadow:var(--shadow);
+    font-size:11px;
+}
+
+#toast.show{
+    display:block;
+}
+
+#toast.success{
+    border-color:rgba(22,217,138,.4);
+}
+
+#toast.error{
+    border-color:rgba(255,79,112,.4);
+}
+
+#toast.info{
+    border-color:rgba(0,217,255,.4);
+}
+
+/* ================= LOADING ================= */
+
+.loading{
+    position:relative;
+    overflow:hidden;
+}
+
+.loading::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    transform:translateX(-100%);
+    background:linear-gradient(
+        90deg,
+        transparent,
+        rgba(255,255,255,.04),
+        transparent
+    );
+    animation:loading 1.2s infinite;
+}
+
+@keyframes loading{
+    100%{
+        transform:translateX(100%);
+    }
+}
+
+/* ================= FOOTER ================= */
+
+.footer{
+    border-top:1px solid var(--border);
+    padding:10px 18px;
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    color:var(--muted);
+    font-size:9px;
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media(max-width:1100px){
+
+    .main{
+        grid-template-columns:220px minmax(0,1fr);
+    }
+
+    .status-row{
+        grid-template-columns:repeat(2,1fr);
+    }
+
+    .col-8,
+    .col-7,
+    .col-6,
+    .col-5,
+    .col-4{
+        grid-column:span 12;
+    }
+
+    .indicators{
+        grid-template-columns:repeat(2,1fr);
+    }
+}
+
+@media(max-width:800px){
+
+    .header{
+        height:auto;
+        min-height:65px;
+        padding:10px 12px;
+    }
+
+    .header-right .badge{
+        display:none;
+    }
+
+    .nav{
+        padding:0 10px;
+        overflow-x:auto;
+    }
+
+    .main{
+        display:block;
+    }
+
+    .sidebar{
+        min-height:auto;
+        max-height:260px;
+        border-right:0;
+        border-bottom:1px solid var(--border);
+    }
+
+    .watchlist{
+        display:grid;
+        grid-template-columns:repeat(2,1fr);
+    }
+
+    .content{
+        padding:10px;
+    }
+
+    .toolbar{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .signal-layout{
+        grid-template-columns:1fr;
+    }
+
+    .metrics{
+        grid-template-columns:repeat(2,1fr);
+    }
+
+    .mtf-grid{
+        grid-template-columns:repeat(4,1fr);
+    }
+
+    .levels{
+        grid-template-columns:repeat(2,1fr);
+    }
+
+    .chart-wrap{
+        height:400px;
+    }
+}
+
+@media(max-width:500px){
+
+    .brand-sub{
+        display:none;
+    }
+
+    .selected-symbol{
+        font-size:20px;
+    }
+
+    .status-row{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .score-wrap{
+        grid-template-columns:1fr;
+    }
+
+    .indicators{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .metrics{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .mtf-grid{
+        grid-template-columns:repeat(2,1fr);
+    }
+
+    .toolbar-actions{
+        width:100%;
+    }
+
+    .toolbar-actions button{
+        flex:1;
+    }
+}
 </style>
 </head>
-<body>
-<header class="top"><div class="brand"><div class="logo"></div><div><b>TraderAI V7.1 High-Conviction</b><small>Technical · Structure · Levels · News · Multi-Timeframe · Analysis Only</small></div></div><nav class="nav"><button class="btn on" data-scroll="analysis">Phân tích AI</button><button class="btn" data-scroll="levelsPanel">Vùng giá</button><button class="btn" data-scroll="newsPanel">Tin tức</button><button class="btn" data-scroll="historyPanel">History</button><button class="btn" data-scroll="settingsPanel">Cài đặt</button></nav><button class="btn" id="refresh">↻</button><span class="live">● LIVE</span></header>
 
-<main class="layout" id="analysis">
-<aside class="col">
-<section class="panel"><div class="head"><div class="title">Watchlist<small>Crypto · Forex · Index · Commodity</small></div><button class="btn" id="open">＋</button></div><input class="search" id="search" placeholder="Tìm mã / tài sản..."><div class="tabs"><button class="tab on" data-f="all">Tất cả</button><button class="tab" data-f="tv">TV</button><button class="tab" data-f="bn">Binance</button></div><div class="watchhead"><span>Mã</span><span>Giá</span><span>%</span><span>Nguồn</span></div><div id="watch"></div></section>
-<section class="panel"><div class="head"><div class="title">System</div></div><div class="rightlist"><div class="ind"><span>Backend</span><b><i id="dot" class="dot"></i> <span id="status">CHECK</span></b></div><div class="ind"><span>Mode</span><b>ANALYSIS ONLY</b></div><div class="ind"><span>Engine</span><b id="engine">V7.1</b></div><div class="ind"><span>Latency</span><b id="latency">--</b></div></div><div class="backend">API: <b id="apiUrl">--</b><div id="error"></div></div></section>
+<body>
+
+<div class="app">
+
+<!-- ================= HEADER ================= -->
+
+<header class="header">
+
+    <div class="brand">
+
+        <div class="logo">N</div>
+
+        <div>
+            <div class="brand-title">
+                NovaTrade AI V7.2
+            </div>
+
+            <div class="brand-sub">
+                Phân tích thông minh · High Conviction · Analysis Only
+            </div>
+        </div>
+
+    </div>
+
+    <div class="header-right">
+
+        <div class="badge analysis-badge">
+            <span>ANALYSIS ONLY</span>
+        </div>
+
+        <div class="badge">
+            <span class="live-dot"></span>
+            <span>LIVE</span>
+        </div>
+
+        <button class="header-btn" onclick="refreshAll()">
+            ↻ Làm mới
+        </button>
+
+    </div>
+
+</header>
+
+<!-- ================= NAV ================= -->
+
+<nav class="nav">
+
+    <button class="active" data-page="analysis" onclick="switchPage('analysis',this)">
+        Phân tích AI
+    </button>
+
+    <button data-page="chart" onclick="switchPage('chart',this)">
+        Biểu đồ
+    </button>
+
+    <button data-page="history" onclick="switchPage('history',this)">
+        Lịch sử tín hiệu
+    </button>
+
+    <button data-page="news" onclick="switchPage('news',this)">
+        Tin tức
+    </button>
+
+    <button data-page="settings" onclick="switchPage('settings',this)">
+        Cài đặt
+    </button>
+
+</nav>
+
+<!-- ================= MAIN ================= -->
+
+<div class="main">
+
+<!-- ================= SIDEBAR ================= -->
+
+<aside class="sidebar">
+
+    <div class="sidebar-top">
+
+        <div class="sidebar-title">
+            Watchlist
+        </div>
+
+        <div class="tabs">
+
+            <button class="tab active" onclick="filterAssets('all',this)">
+                Tất cả
+            </button>
+
+            <button class="tab" onclick="filterAssets('crypto',this)">
+                Crypto
+            </button>
+
+            <button class="tab" onclick="filterAssets('market',this)">
+                Market
+            </button>
+
+        </div>
+
+    </div>
+
+    <div class="watchlist" id="watchlist"></div>
+
 </aside>
 
-<section class="panel"><div class="hero"><div><div class="asset" id="asset">BTCUSDT</div><small id="source">BINANCE · Live data</small></div><div><div class="price" id="price">--</div><small id="chg">--</small></div></div>
-<div class="tools"><button class="tf" data-tf="M1">1m</button><button class="tf" data-tf="M5">5m</button><button class="tf" data-tf="M15">15m</button><button class="tf on" data-tf="H1">1h</button><button class="tf" data-tf="H4">4h</button><button class="tf" data-tf="D1">D</button><button class="tf" data-tf="W1">W</button><span style="flex:1"></span><button class="btn" id="analyze">Phân tích V7.1</button></div>
-<div class="chart"><iframe id="tv"></iframe></div>
-<div class="summary">
-<div class="card"><div class="label">High-Conviction Signal</div><div id="signal" class="signal neutral">NEUTRAL</div><span id="conf">Confidence -- · Quality --</span> <span id="hc" class="badge off">CHƯA XÁC NHẬN</span>
-<div class="scoregrid"><div class="mini"><small>BUY SCORE</small><b id="buy">--</b></div><div class="mini"><small>SELL SCORE</small><b id="sell">--</b></div><div class="mini"><small>DIRECTIONAL EDGE</small><b id="edge">--</b></div></div>
-<div class="levels"><div class="level"><b>Entry</b><span id="entry">--</span></div><div class="level"><b>SL</b><span id="sl">--</span></div><div class="level"><b>TP1</b><span id="tp1">--</span></div><div class="level"><b>TP2</b><span id="tp2">--</span></div><div class="level"><b>TP3</b><span id="tp3">--</span></div></div><small>Mức tham chiếu phân tích · không tự đặt lệnh.</small></div>
-<div class="card"><div class="label">AI Reasoning</div><div id="reasons"><div class="reason">Đang chờ dữ liệu.</div></div></div>
-</div></section>
+<!-- ================= CONTENT ================= -->
 
-<aside class="col right"><section class="panel gaugebox"><div class="title">V7.1 Consensus<small>Multi-Timeframe High-Conviction gate</small></div><div class="gauge" id="gauge"><div class="gaugein"><b id="gnum">--%</b><small>CONFIDENCE</small></div></div><div id="csignal" class="signal neutral">NEUTRAL</div><span id="cbadge" class="badge off">CHƯA CÓ KẾT QUẢ</span><div class="trends"><div class="trend"><small>SHORT</small><b id="short">--</b></div><div class="trend"><small>MID</small><b id="mid">--</b></div><div class="trend"><small>LONG</small><b id="long">--</b></div></div><div class="enginegrid"><div class="mini"><small>MTF AGREEMENT</small><b id="same">--</b></div><div class="mini"><small>HTF SUPPORT</small><b id="htf">--</b></div></div></section>
-<section class="panel"><div class="head"><div class="title">Multi-Timeframe<small>M1 · M5 · M15 · H1 · H4 · D1 · W1</small></div></div><div class="mtf" id="mtf"></div></section>
-<section class="panel"><div class="head"><div class="title">Technical Engine<small id="tfLabel">Khung H1</small></div></div><div class="rightlist"><div class="ind"><span>EMA20 / EMA50</span><b id="ema">--</b></div><div class="ind"><span>EMA200</span><b id="ema200">--</b></div><div class="ind"><span>RSI14</span><b id="rsi">--</b></div><div class="ind"><span>MACD / Hist</span><b id="macd">--</b></div><div class="ind"><span>ADX / +DI / -DI</span><b id="adx">--</b></div><div class="ind"><span>ATR</span><b id="atr">--</b></div><div class="ind"><span>OBV</span><b id="obv">--</b></div><div class="ind"><span>Volume Ratio</span><b id="vol">--</b></div><div class="ind"><span>VWAP</span><b id="vwap">--</b></div><div class="ind"><span>Bollinger</span><b id="bb">--</b></div><div class="ind"><span>Structure</span><b id="structure">--</b></div><div class="ind"><span>Candlestick</span><b id="candle">--</b></div></div></section></aside>
+<main class="content">
+
+<!-- =========================================================
+     ANALYSIS PAGE
+========================================================= -->
+
+<section class="page active" id="page-analysis">
+
+    <div class="toolbar">
+
+        <div class="selected">
+
+            <div>
+                <div class="selected-symbol" id="selectedSymbol">
+                    BTCUSDT
+                </div>
+
+                <div class="selected-source" id="selectedSource">
+                    Binance · Crypto · Analysis Only
+                </div>
+            </div>
+
+        </div>
+
+        <div class="toolbar-actions">
+
+            <button class="secondary-btn" onclick="checkBackend()">
+                Kiểm tra Backend
+            </button>
+
+            <button class="primary-btn" onclick="runAnalysis()">
+                ⚡ Phân tích dữ liệu thật
+            </button>
+
+        </div>
+
+    </div>
+
+    <!-- STATUS -->
+
+    <div class="status-row">
+
+        <div class="status-card">
+
+            <div class="status-label">
+                Backend
+            </div>
+
+            <div class="status-value" id="backendStatus">
+                Đang kiểm tra...
+            </div>
+
+            <div class="status-small" id="backendVersion">
+                --
+            </div>
+
+        </div>
+
+        <div class="status-card">
+
+            <div class="status-label">
+                Engine
+            </div>
+
+            <div class="status-value">
+                7.1 HIGH-CONVICTION
+            </div>
+
+            <div class="status-small">
+                MTF Consensus
+            </div>
+
+        </div>
+
+        <div class="status-card">
+
+            <div class="status-label">
+                API
+            </div>
+
+            <div class="status-value" id="apiMode">
+                LOCAL
+            </div>
+
+            <div class="status-small" id="apiLatency">
+                Latency: --
+            </div>
+
+        </div>
+
+        <div class="status-card">
+
+            <div class="status-label">
+                Market
+            </div>
+
+            <div class="status-value" id="marketPrice">
+                --
+            </div>
+
+            <div class="status-small" id="marketChange">
+                --
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="grid">
+
+        <!-- SIGNAL -->
+
+        <div class="card col-7">
+
+            <div class="card-header">
+
+                <div>
+                    <div class="card-title">
+                        Tóm tắt giao dịch
+                    </div>
+
+                    <div class="card-sub">
+                        Tín hiệu phân tích · Không phải lệnh thật
+                    </div>
+                </div>
+
+                <div id="analysisTime" class="card-sub">
+                    --
+                </div>
+
+            </div>
+
+            <div class="card-body">
+
+                <div class="signal-layout">
+
+                    <div class="signal-box">
+
+                        <div id="mainSignal" class="signal neutral">
+                            NEUTRAL
+                        </div>
+
+                        <div class="signal-confidence">
+                            Confidence:
+                            <strong id="confidence">
+                                --
+                            </strong>
+                        </div>
+
+                        <div id="convictionBadge" class="conviction normal">
+                            NORMAL CONVICTION
+                        </div>
+
+                    </div>
+
+                    <div class="metrics">
+
+                        <div class="metric">
+                            <div class="metric-label">
+                                Entry
+                            </div>
+
+                            <div class="metric-value" id="entry">
+                                --
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <div class="metric-label">
+                                Stop Loss
+                            </div>
+
+                            <div class="metric-value" id="sl">
+                                --
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <div class="metric-label">
+                                TP1
+                            </div>
+
+                            <div class="metric-value" id="tp1">
+                                --
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <div class="metric-label">
+                                TP2
+                            </div>
+
+                            <div class="metric-value" id="tp2">
+                                --
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <div class="metric-label">
+                                TP3
+                            </div>
+
+                            <div class="metric-value" id="tp3">
+                                --
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <div class="metric-label">
+                                Risk / Reward
+                            </div>
+
+                            <div class="metric-value" id="rr">
+                                --
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- CONSENSUS -->
+
+        <div class="card col-5">
+
+            <div class="card-header">
+
+                <div>
+                    <div class="card-title">
+                        AI Consensus
+                    </div>
+
+                    <div class="card-sub">
+                        Buy / Sell directional pressure
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="card-body">
+
+                <div class="score-wrap">
+
+                    <div class="score">
+
+                        <div class="score-top">
+                            <span>BUY SCORE</span>
+                            <span id="buyScore">--</span>
+                        </div>
+
+                        <div class="bar">
+                            <div
+                                id="buyBar"
+                                class="bar-fill buy-bar"
+                                style="width:0%">
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="score">
+
+                        <div class="score-top">
+                            <span>SELL SCORE</span>
+                            <span id="sellScore">--</span>
+                        </div>
+
+                        <div class="bar">
+                            <div
+                                id="sellBar"
+                                class="bar-fill sell-bar"
+                                style="width:0%">
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="edge">
+
+                    Edge:
+                    <span id="directionalEdge">
+                        --
+                    </span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- MTF -->
+
+        <div class="card col-12">
+
+            <div class="card-header">
+
+                <div>
+                    <div class="card-title">
+                        Multi-Timeframe Consensus
+                    </div>
+
+                    <div class="card-sub">
+                        M1 · M5 · M15 · H1 · H4 · D1 · W1
+                    </div>
+                </div>
+
+                <div id="mtfSummary" class="card-sub">
+                    --
+                </div>
+
+            </div>
+
+            <div class="card-body">
+
+                <div class="mtf-grid" id="mtfGrid">
+
+                    <div class="mtf-item">
+                        <div class="mtf-time">M1</div>
+                        <div class="mtf-signal neutral">--</div>
+                    </div>
+
+                    <div class="mtf-item">
+                        <div class="mtf-time">M5</div>
+                        <div class="mtf-signal neutral">--</div>
+                    </div>
+
+                    <div class="mtf-item">
+                        <div class="mtf-time">M15</div>
+                        <div class="mtf-signal neutral">--</div>
+                    </div>
+
+                    <div class="mtf-item">
+                        <div class="mtf-time">H1</div>
+                        <div class="mtf-signal neutral">--</div>
+                    </div>
+
+                    <div class="mtf-item">
+                        <div class="mtf-time">H4</div>
+                        <div class="mtf-signal neutral">--</div>
+                    </div>
+
+                    <div class="mtf-item">
+                        <div class="mtf-time">D1</div>
+                        <div class="mtf-signal neutral">--</div>
+                    </div>
+
+                    <div class="mtf-item">
+                        <div class="mtf-time">W1</div>
+                        <div class="mtf-signal neutral">--</div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- REASONING -->
+
+        <div class="card col-6">
+
+            <div class="card-header">
+
+                <div>
+                    <div class="card-title">
+                        AI Reasoning
+                    </div>
+
+                    <div class="card-sub">
+                        Phân tích đa yếu tố
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="card-body">
+
+                <div class="reasoning" id="reasoning">
+
+                    <div class="reason">
+
+                        <div class="reason-title">
+                            Market Structure
+                        </div>
+
+                        <div class="reason-text" id="reasonStructure">
+                            Chưa có dữ liệu.
+                        </div>
+
+                    </div>
+
+                    <div class="reason">
+
+                        <div class="reason-title">
+                            Trend
+                        </div>
+
+                        <div class="reason-text" id="reasonTrend">
+                            Chưa có dữ liệu.
+                        </div>
+
+                    </div>
+
+                    <div class="reason">
+
+                        <div class="reason-title">
+                            Momentum
+                        </div>
+
+                        <div class="reason-text" id="reasonMomentum">
+                            Chưa có dữ liệu.
+                        </div>
+
+                    </div>
+
+                    <div class="reason">
+
+                        <div class="reason-title">
+                            High Conviction
+                        </div>
+
+                        <div class="reason-text" id="reasonConviction">
+                            Chưa có dữ liệu.
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- INDICATORS -->
+
+        <div class="card col-6">
+
+            <div class="card-header">
+
+                <div>
+                    <div class="card-title">
+                        Technical Engine
+                    </div>
+
+                    <div class="card-sub">
+                        Indicators
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="card-body">
+
+                <div class="indicators">
+
+                    <div class="indicator">
+                        <div class="indicator-name">EMA 20</div>
+                        <div class="indicator-value" id="ema20">--</div>
+                    </div>
+
+                    <div class="indicator">
+                        <div class="indicator-name">EMA 50</div>
+                        <div class="indicator-value" id="ema50">--</div>
+                    </div>
+
+                    <div class="indicator">
+                        <div class="indicator-name">RSI 14</div>
+                        <div class="indicator-value" id="rsi">--</div>
+                    </div>
+
+                    <div class="indicator">
+                        <div class="indicator-name">MACD</div>
+                        <div class="indicator-value" id="macd">--</div>
+                    </div>
+
+                    <div class="indicator">
+                        <div class="indicator-name">ATR 14</div>
+                        <div class="indicator-value" id="atr">--</div>
+                    </div>
+
+                    <div class="indicator">
+                        <div class="indicator-name">Bollinger</div>
+                        <div class="indicator-value" id="bollinger">--</div>
+                    </div>
+
+                    <div class="indicator">
+                        <div class="indicator-name">Structure</div>
+                        <div class="indicator-value" id="structure">--</div>
+                    </div>
+
+                    <div class="indicator">
+                        <div class="indicator-name">Candlestick</div>
+                        <div class="indicator-value" id="candlestick">--</div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- LEVELS -->
+
+        <div class="card col-12">
+
+            <div class="card-header">
+
+                <div>
+                    <div class="card-title">
+                        Key Levels
+                    </div>
+
+                    <div class="card-sub">
+                        Support / Resistance / Risk levels
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="card-body">
+
+                <div class="levels">
+
+                    <div class="level">
+                        <div class="level-label">Resistance 2</div>
+                        <div class="level-value" id="r2">--</div>
+                    </div>
+
+                    <div class="level">
+                        <div class="level-label">Resistance 1</div>
+                        <div class="level-value" id="r1">--</div>
+                    </div>
+
+                    <div class="level">
+                        <div class="level-label">Current</div>
+                        <div class="level-value" id="levelCurrent">--</div>
+                    </div>
+
+                    <div class="level">
+                        <div class="level-label">Support 1</div>
+                        <div class="level-value" id="s1">--</div>
+                    </div>
+
+                    <div class="level">
+                        <div class="level-label">Support 2</div>
+                        <div class="level-value" id="s2">--</div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- NEWS -->
+
+        <div class="card col-12">
+
+            <div class="card-header">
+
+                <div>
+                    <div class="card-title">
+                        Market News
+                    </div>
+
+                    <div class="card-sub">
+                        Tin tức hỗ trợ phân tích
+                    </div>
+                </div>
+
+                <button
+                    class="secondary-btn"
+                    onclick="loadNews()">
+                    ↻ Cập nhật
+                </button>
+
+            </div>
+
+            <div class="card-body">
+
+                <div class="news-list" id="newsList">
+
+                    <div class="news-item">
+
+                        <div class="news-title">
+                            Chưa tải tin tức.
+                        </div>
+
+                        <div class="news-meta">
+                            Nhấn phân tích hoặc cập nhật.
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- =========================================================
+     CHART PAGE
+========================================================= -->
+
+<section class="page" id="page-chart">
+
+    <div class="toolbar">
+
+        <div>
+
+            <div class="selected-symbol">
+                TradingView Chart
+            </div>
+
+            <div class="selected-source">
+                <span id="chartSymbolLabel">
+                    BTCUSDT
+                </span>
+            </div>
+
+        </div>
+
+        <div class="toolbar-actions">
+
+            <button class="secondary-btn" onclick="setChartSymbol()">
+                Cập nhật biểu đồ
+            </button>
+
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <div class="card-header">
+
+            <div>
+                <div class="card-title">
+                    Biểu đồ thị trường
+                </div>
+
+                <div class="card-sub">
+                    TradingView
+                </div>
+            </div>
+
+        </div>
+
+        <div class="chart-wrap">
+
+            <iframe
+                id="tvFrame"
+                src="">
+            </iframe>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- =========================================================
+     HISTORY PAGE
+========================================================= -->
+
+<section class="page" id="page-history">
+
+    <div class="toolbar">
+
+        <div>
+
+            <div class="selected-symbol">
+                Signal History
+            </div>
+
+            <div class="selected-source">
+                Tín hiệu phân tích, không phải lệnh thật
+            </div>
+
+        </div>
+
+        <div class="toolbar-actions">
+
+            <button
+                class="secondary-btn"
+                onclick="loadHistory()">
+                ↻ Làm mới
+            </button>
+
+            <button
+                class="secondary-btn"
+                onclick="clearHistory()">
+                Xóa lịch sử
+            </button>
+
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <div class="card-header">
+
+            <div>
+                <div class="card-title">
+                    Lịch sử tín hiệu
+                </div>
+
+                <div class="card-sub">
+                    BUY / SELL signals
+                </div>
+            </div>
+
+        </div>
+
+        <div class="card-body">
+
+            <div class="table-wrap">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+                            <th>Time</th>
+                            <th>Symbol</th>
+                            <th>Signal</th>
+                            <th>Confidence</th>
+                            <th>Price</th>
+                            <th>Engine</th>
+                            <th>Status</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="historyBody">
+
+                        <tr>
+                            <td colspan="7">
+                                Chưa có dữ liệu.
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- =========================================================
+     NEWS PAGE
+========================================================= -->
+
+<section class="page" id="page-news">
+
+    <div class="toolbar">
+
+        <div>
+
+            <div class="selected-symbol">
+                Market News
+            </div>
+
+            <div class="selected-source">
+                Tin tức theo tài sản đang chọn
+            </div>
+
+        </div>
+
+        <button
+            class="primary-btn"
+            onclick="loadNews()">
+            ↻ Cập nhật tin tức
+        </button>
+
+    </div>
+
+    <div class="card">
+
+        <div class="card-header">
+
+            <div>
+                <div class="card-title">
+                    News Feed
+                </div>
+
+                <div class="card-sub">
+                    <span id="newsSymbol">
+                        BTCUSDT
+                    </span>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="card-body">
+
+            <div class="news-list" id="newsPageList">
+
+                <div class="news-item">
+                    <div class="news-title">
+                        Chưa tải dữ liệu.
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- =========================================================
+     SETTINGS PAGE
+========================================================= -->
+
+<section class="page" id="page-settings">
+
+    <div class="toolbar">
+
+        <div>
+
+            <div class="selected-symbol">
+                Cài đặt
+            </div>
+
+            <div class="selected-source">
+                NovaTrade AI V7.2
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="settings">
+
+        <div class="setting">
+
+            <div class="setting-title">
+                API Endpoint
+            </div>
+
+            <div class="setting-desc">
+                Endpoint được tự động chọn dựa trên môi trường đang chạy.
+            </div>
+
+            <div class="api-box" id="apiBox">
+                --
+            </div>
+
+        </div>
+
+        <div class="setting">
+
+            <div class="setting-title">
+                Chế độ hoạt động
+            </div>
+
+            <div class="setting-desc">
+                TraderAI V7.2 chỉ phân tích dữ liệu thị trường.
+                Không gửi lệnh mua hoặc bán.
+            </div>
+
+            <div class="api-box">
+                ANALYSIS_ONLY = TRUE
+            </div>
+
+        </div>
+
+        <div class="setting">
+
+            <div class="setting-title">
+                Engine
+            </div>
+
+            <div class="setting-desc">
+                Multi-Timeframe High Conviction Consensus.
+            </div>
+
+            <div class="api-box">
+                ENGINE = 7.1-HIGH-CONVICTION
+            </div>
+
+        </div>
+
+        <div class="setting">
+
+            <div class="setting-title">
+                Cache
+            </div>
+
+            <div class="setting-desc">
+                Backend V7.2 sử dụng cache để giảm request và
+                tăng tốc dashboard.
+            </div>
+
+            <div class="api-box">
+                MARKET = 12s · MTF = 45s · SNAPSHOT = 12s
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
 </main>
 
-<section class="panel section" id="levelsPanel"><div class="head"><div class="title">🎯 Support / Resistance / Supply-Demand<small>ATR zones · swing points · Fibonacci references</small></div><button class="btn" id="refreshLevels">Cập nhật</button></div><div class="zone-grid"><div class="zone"><b>Hỗ trợ gần nhất</b><small id="support">--</small></div><div class="zone"><b>Kháng cự gần nhất</b><small id="resistance">--</small></div><div class="zone"><b>Range High / Low</b><small id="range">--</small></div><div class="zone"><b>ATR / khoảng cách</b><small id="levelmeta">--</small></div></div><div id="zones" class="zone-grid"></div></section>
+</div>
 
-<section class="panel section" id="newsPanel"><div class="head"><div class="title">📰 Market News Engine<small>News là bộ lọc bối cảnh, không phải tín hiệu độc lập</small></div><button class="btn" id="refreshNews">↻ Tin mới</button></div><div class="news"><div class="zone"><b id="newsScore">NEUTRAL</b> <small id="newsNum">0.00</small></div><div id="newsList"></div></div></section>
+<!-- ================= FOOTER ================= -->
 
-<section class="panel section" id="historyPanel"><div class="head"><div class="title">🧾 Signal History<small>Backend history · không phải lệnh thật</small></div><button class="btn" id="clearHistory">Xóa</button></div><div class="stats"><div class="stat"><small>TỔNG</small><b id="total">0</b></div><div class="stat"><small>HOÀN TẤT</small><b id="completed">0</b></div><div class="stat"><small>WIN</small><b id="wins">0</b></div><div class="stat"><small>LOSS</small><b id="losses">0</b></div><div class="stat"><small>PENDING</small><b id="pending">0</b></div><div class="stat"><small>WIN RATE</small><b id="rate">0%</b></div></div><div class="history"><table><thead><tr><th>Time</th><th>Symbol</th><th>TF</th><th>Signal</th><th>Entry</th><th>SL</th><th>TP1</th><th>Current</th><th>Result</th></tr></thead><tbody id="historyBody"></tbody></table></div></section>
+<footer class="footer">
 
-<section class="panel section" id="settingsPanel"><div class="head"><div class="title">⚙️ V7.1 Settings</div></div><div class="settings"><div class="setting"><b>High-Conviction</b><small>BUY/SELL chỉ được giữ khi có đồng thuận đủ mạnh và hỗ trợ từ khung cao hơn.</small></div><div class="setting"><b>Levels</b><small>Swing highs/lows + ATR tolerance + Fibonacci reference.</small></div><div class="setting"><b>News</b><small>News bổ sung bối cảnh, không tự tạo tín hiệu.</small></div><div class="setting"><b>Risk</b><small>Entry/SL/TP chỉ là mức mô phỏng. TraderAI không tự đặt lệnh.</small></div></div></section>
-<footer class="footer">TraderAI V7.1 High-Conviction · Analysis Only · Binance + TradingView · <span id="runtime">--</span></footer>
+    <div>
+        NovaTrade AI V7.2 · Analysis Only
+    </div>
 
-<div class="modal" id="modal"><div class="panel modalbox"><button class="btn" id="close" style="float:right">×</button><h3>Chọn tài sản</h3><input class="search" id="msearch" placeholder="Tìm mã..."><div id="grid" class="zone-grid"></div></div></div><div class="toast" id="toast"></div>
+    <div>
+        Backend:
+        <span id="footerBackend">
+            --
+        </span>
+    </div>
+
+</footer>
+
+</div>
+
+<div id="toast"></div>
 
 <script>
-const $=id=>document.getElementById(id);
-const LOCAL_API="http://127.0.0.1:8001",RENDER_API="https://ai-trader-vip.onrender.com";
-const local=new Set(["localhost","127.0.0.1","::1"]);
-const IS_LOCAL=local.has(location.hostname)||location.protocol==="file:",API=IS_LOCAL?LOCAL_API:RENDER_API;
-$("apiUrl").textContent=API;$("runtime").textContent=(IS_LOCAL?"LOCAL":"GITHUB/WEB")+" → "+API;
-const TV={XAUUSD:"OANDA:XAUUSD",EURUSD:"OANDA:EURUSD",GBPUSD:"OANDA:GBPUSD",US30:"CAPITALCOM:US30",US500:"CAPITALCOM:US500",USDJPY:"OANDA:USDJPY",BTCUSD:"COINBASE:BTCUSD",ETHUSD:"COINBASE:ETHUSD",USOIL:"TVC:USOIL"};
-const BN=["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","AVAXUSDT","LINKUSDT","DOTUSDT","TRXUSDT","LTCUSDT","BCHUSDT","UNIUSDT","ATOMUSDT","NEARUSDT","APTUSDT","SUIUSDT","PEPEUSDT","SHIBUSDT"];
-const ALL=[...Object.keys(TV).map(s=>({s,src:"TV"})),...BN.map(s=>({s,src:"BN"}))],TFS=["M1","M5","M15","H1","H4","D1","W1"];
-let selected=ALL.find(x=>x.s==="BTCUSDT"),filter="all",selectedTF="H1";
-const fmt=(v,d=2)=>Number.isFinite(Number(v))?Number(v).toLocaleString("en-US",{maximumFractionDigits:d}):"--";
-const esc=v=>String(v??"").replace(/[<>&"]/g,""),cls=s=>s==="BUY"?"buy":s==="SELL"?"sell":"neutral";
-function state(s,msg=""){ $("dot").className="dot "+(s==="ok"?"ok":s==="bad"?"bad":"busy");$("status").textContent=s==="ok"?"ONLINE":s==="bad"?"OFFLINE":"CHECK";if(msg)$("error").textContent=msg}
-async function api(path,opt={},timeout=90000){const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout),st=performance.now();state("busy");try{const r=await fetch(API+path,{...opt,cache:"no-store",signal:c.signal,headers:{Accept:"application/json",...(opt.headers||{})}});$("latency").textContent=Math.round(performance.now()-st)+" ms";const d=await r.json().catch(()=>({}));if(!r.ok)throw Error("HTTP "+r.status+(d.detail?": "+d.detail:""));state("ok");return d}catch(e){state("bad",e.name==="AbortError"?"Backend timeout.":e.message);throw e}finally{clearTimeout(t)}}
-function chart(){const map={M1:"1",M5:"5",M15:"15",H1:"60",H4:"240",D1:"D",W1:"W"},sym=encodeURIComponent(TV[selected.s]||"BINANCE:"+selected.s);$("tv").src="https://www.tradingview.com/widgetembed/?symbol="+sym+"&interval="+map[selectedTF]+"&theme=dark&style=1&timezone=Asia%2FHo_Chi_Minh&locale=vi&withdateranges=1&hideideas=1&studies=BB%40tv-basicstudies%7CRSI%40tv-basicstudies%7CMACD%40tv-basicstudies"}
-function renderWatch(){const q=$("search").value.toUpperCase(),a=ALL.filter(x=>(filter==="all"||x.src.toLowerCase()===filter)&&x.s.includes(q));$("watch").innerHTML=a.slice(0,30).map(x=>`<div class="row ${x.s===selected.s?"sel":""}" data-s="${x.s}"><div><div class="sym">${esc(x.s)}</div><div class="src">${x.src}</div></div><div data-p="${x.s}">--</div><div data-c="${x.s}" class="neutral">--</div><div class="src">${x.src}</div></div>`).join("");document.querySelectorAll(".row").forEach(x=>x.onclick=()=>select(x.dataset.s));prices()}
-async function prices(){for(const s of BN){try{const d=await api(`/api/market-data?symbol=${s}&limit=2`,{},9000),a=d.data||[];if(a.length<1)continue;const x=a[a.length-1],y=a[a.length-2]||x,p=Number(x.close??x[4]),q=Number(y.close??y[4]),ch=q?100*(p-q)/q:NaN,z=document.querySelector(`[data-p="${s}"]`),c=document.querySelector(`[data-c="${s}"]`);if(z)z.textContent=fmt(p,p>1000?2:5);if(c){c.textContent=Number.isFinite(ch)?(ch>=0?"+":"")+ch.toFixed(2)+"%":"--";c.className=ch>0?"buy":ch<0?"sell":"neutral"}}catch{}}}
-function select(s){selected=ALL.find(x=>x.s===s)||selected;$("asset").textContent=selected.s;$("source").textContent=selected.src==="TV"?TV[selected.s]+" · TradingView":selected.s+" · Binance";renderWatch();chart();analyze();news()}
-function block(d){return d.timeframes?.[selectedTF]?.analysis||d.timeframes?.[selectedTF]||{}}
-function render(d){const a=block(d),c=d.consensus||{},i=a.indicators||{},l=a.levels||{},st=a.structure||{},cs=a.candlestick||{},sig=String(c.signal||a.signal||"NEUTRAL").toUpperCase(),conf=Number(c.confidence??a.confidence);
-$("signal").textContent=sig;$("signal").className="signal "+cls(sig);$("csignal").textContent=sig;$("csignal").className="signal "+cls(sig);$("conf").textContent=`Confidence ${fmt(conf,1)}% · Quality ${fmt(a.signal_quality,1)}`;$("hc").textContent=c.high_conviction?"HIGH-CONVICTION ✓":"NEUTRAL GATE";$("hc").className="badge "+(c.high_conviction?"on":"off");$("cbadge").textContent=c.high_conviction?"HIGH-CONVICTION ✓":"NO HIGH-CONVICTION";$("cbadge").className="badge "+(c.high_conviction?"on":"off");
-const g=Math.max(0,Math.min(100,Number.isFinite(conf)?conf:0));$("gnum").textContent=g.toFixed(0)+"%";$("gauge").style.setProperty("--pct",g+"%");$("engine").textContent=c.engine_version||a.engine_version||"V7.1";$("tfLabel").textContent="Khung "+selectedTF;
-$("buy").textContent=fmt(c.buy_score??a.buy_score,3);$("sell").textContent=fmt(c.sell_score??a.sell_score,3);$("edge").textContent=fmt((c.directional_edge??a.directional_edge)*100,1)+"%";
-$("price").textContent=fmt(a.price,a.price>1000?2:5);$("ema").textContent=fmt(i.ema20,2)+" / "+fmt(i.ema50,2);$("ema200").textContent=fmt(i.ema200,2);$("rsi").textContent=fmt(i.rsi,2);$("macd").textContent=fmt(i.macd,3)+" / "+fmt(i.macd_histogram,3);$("adx").textContent=fmt(i.adx,2)+" / "+fmt(i.plus_di,1)+" / "+fmt(i.minus_di,1);$("atr").textContent=fmt(i.atr,4);$("obv").textContent=fmt(i.obv,0);$("vol").textContent=fmt(i.volume_ratio,2)+"x";$("vwap").textContent=fmt(i.vwap,2);$("bb").textContent=fmt(i.bb_lower,2)+" · "+fmt(i.bb_middle,2)+" · "+fmt(i.bb_upper,2);$("structure").textContent=st.trend||st.structure||"--";$("candle").textContent=cs.pattern||cs.signal||"--";
-$("entry").textContent=fmt(a.entry,2);$("sl").textContent=fmt(a.sl,2);$("tp1").textContent=fmt(a.tp1,2);$("tp2").textContent=fmt(a.tp2,2);$("tp3").textContent=fmt(a.tp3,2);
-$("reasons").innerHTML=(Array.isArray(a.reasoning)&&a.reasoning.length?a.reasoning:["Chưa đủ bằng chứng đồng thuận."]).slice(0,10).map(x=>`<div class="reason">${esc(x)}</div>`).join("");mtf(d.timeframes||{});levels(l);$("short").textContent=(d.timeframes?.M1?.signal||"--")+" / "+(d.timeframes?.M5?.signal||"--");$("mid").textContent=(d.timeframes?.M15?.signal||"--")+" / "+(d.timeframes?.H1?.signal||"--");$("long").textContent=(d.timeframes?.H4?.signal||"--")+" / "+(d.timeframes?.D1?.signal||"--");$("same").textContent=(c.same_direction_frames??"--")+" frames";$("htf").textContent=Number.isFinite(Number(c.htf_support))?fmt(c.htf_support*100,0)+"%":"--";history()}
-function mtf(t){$("mtf").innerHTML=TFS.map(tf=>{const x=t[tf]||{},s=x.signal||"NEUTRAL",p=Number(x.confidence||0);return `<div class="mtfrow"><b>${tf}</b><div><div class="bar"><i style="width:${Math.min(100,p)}%"></i></div><small style="color:#657992">${esc(x.analysis?.engine_version||"")}</small></div><b class="${cls(s)}">${s} ${p.toFixed(0)}%</b></div>`}).join("")}
-function levels(l){const s=l.nearest_support,r=l.nearest_resistance;$("support").textContent=s?`${fmt(s.low,2)} – ${fmt(s.high,2)} · ${s.touches} touches`:"--";$("resistance").textContent=r?`${fmt(r.low,2)} – ${fmt(r.high,2)} · ${r.touches} touches`:"--";$("range").textContent=`${fmt(l.range_low,2)} – ${fmt(l.range_high,2)}`;$("levelmeta").textContent=`ATR ${fmt(l.atr,2)} · S ${fmt(l.distance_to_support_atr,2)} ATR · R ${fmt(l.distance_to_resistance_atr,2)} ATR`;$("zones").innerHTML=(l.zones||[]).map(z=>`<div class="zone"><b>${z.type} · ${fmt(z.price,2)}</b><small>${fmt(z.low,2)} – ${fmt(z.high,2)} · strength ${fmt(z.strength,0)} · ${z.touches} touches</small></div>`).join("")}
-async function analyze(){try{render(await api(`/api/analyze-live-mtf?symbol=${encodeURIComponent(selected.s)}&limit=300`))}catch(e){toast("Phân tích lỗi: "+e.message)}}
-async function news(){try{const d=await api(`/api/news?symbol=${encodeURIComponent(selected.s)}&limit=8`,{},12000),s=Number(d.sentiment_score||0);$("newsScore").textContent=s>.15?"POSITIVE":s<-.15?"NEGATIVE":"NEUTRAL";$("newsNum").textContent=s.toFixed(2);$("newsList").innerHTML=(d.items||[]).map(x=>`<div class="news-item"><a href="${esc(x.link)}" target="_blank" rel="noopener">${esc(x.title)}</a><small>${esc(x.source||"News")} · ${esc(x.published||"")} · ${esc(x.sentiment||"")}</small></div>`).join("")}catch{$("newsList").innerHTML="<div class='news-item'><small>News Engine tạm thời không truy cập được.</small></div>"}}
-async function history(){try{const d=await api("/api/history?limit=100",{},12000),s=d.stats||{};$("total").textContent=s.total||0;$("completed").textContent=s.completed||0;$("wins").textContent=s.wins||0;$("losses").textContent=s.losses||0;$("pending").textContent=s.pending||0;$("rate").textContent=(s.win_rate||0).toFixed(2)+"%";$("historyBody").innerHTML=(d.history||[]).map(r=>`<tr><td>${esc(r.created_at_iso||r.created_at)}</td><td>${esc(r.symbol)}</td><td>${esc(r.timeframe)}</td><td class="${cls(r.signal)}"><b>${r.signal}</b></td><td>${fmt(r.entry,2)}</td><td>${fmt(r.sl,2)}</td><td>${fmt(r.tp1,2)}</td><td>${fmt(r.current,2)}</td><td>${esc(r.result)}</td></tr>`).join("")||"<tr><td colspan='9'>Chưa có tín hiệu.</td></tr>"}catch{}}
-function toast(m){$("toast").textContent=m;$("toast").style.display="block";setTimeout(()=>$("toast").style.display="none",2500)}
-document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));b.classList.add("on");filter=b.dataset.f;renderWatch()});
-document.querySelectorAll(".tf").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tf").forEach(x=>x.classList.remove("on"));b.classList.add("on");selectedTF=b.dataset.tf;chart();analyze()});
-document.querySelectorAll("[data-scroll]").forEach(b=>b.onclick=()=>$(b.dataset.scroll)?.scrollIntoView({behavior:"smooth"}));
-$("search").oninput=renderWatch;$("analyze").onclick=analyze;$("refresh").onclick=()=>{chart();renderWatch();analyze();news();history()};$("refreshNews").onclick=news;$("refreshLevels").onclick=analyze;
-$("clearHistory").onclick=async()=>{if(confirm("Xóa toàn bộ History trên backend?")){await api("/api/history",{method:"DELETE"});history()}};
-$("open").onclick=()=>{$("modal").style.display="grid";modalRender()};$("close").onclick=()=>$("modal").style.display="none";$("msearch").oninput=modalRender;
-function modalRender(){const q=$("msearch").value.toUpperCase();$("grid").innerHTML=ALL.filter(x=>x.s.includes(q)).map(x=>`<button class="btn" data-pick="${x.s}"><b>${x.s}</b> · ${x.src}</button>`).join("");document.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{$("modal").style.display="none";select(b.dataset.pick)})}
-renderWatch();chart();history();news();analyze();setInterval(()=>{prices();analyze();history()},60000);setInterval(news,180000);
+
+/* ============================================================
+   CONFIGURATION
+============================================================ */
+
+const LOCAL_API =
+    "http://127.0.0.1:8001";
+
+const RENDER_API =
+    "https://ai-trader-vip.onrender.com";
+
+function detectAPI(){
+
+    const host =
+        window.location.hostname.toLowerCase();
+
+    /*
+       Local:
+       localhost
+       127.0.0.1
+       0.0.0.0
+
+       GitHub Pages:
+       *.github.io
+    */
+
+    if(
+        host === "localhost" ||
+        host === "127.0.0.1" ||
+        host === "0.0.0.0" ||
+        host === ""
+    ){
+        return LOCAL_API;
+    }
+
+    if(
+        host.endsWith(".github.io")
+    ){
+        return RENDER_API;
+    }
+
+    /*
+       Khi chạy file bằng Live Server hoặc
+       môi trường local khác.
+    */
+
+    if(
+        host.startsWith("192.168.") ||
+        host.startsWith("10.") ||
+        host.startsWith("172.")
+    ){
+        return LOCAL_API;
+    }
+
+    return RENDER_API;
+}
+
+const API_BASE = detectAPI();
+
+document.getElementById("apiBox").textContent =
+    API_BASE;
+
+document.getElementById("apiMode").textContent =
+    API_BASE === LOCAL_API
+        ? "LOCAL"
+        : "RENDER";
+
+/* ============================================================
+   APP STATE
+============================================================ */
+
+let selectedSymbol = "BTCUSDT";
+
+let currentAnalysis = null;
+
+let currentSnapshot = null;
+
+let assetFilter = "all";
+
+let requestController = null;
+
+/* ============================================================
+   ASSETS
+============================================================ */
+
+const ASSETS = [
+
+    {
+        symbol:"BTCUSDT",
+        name:"Bitcoin",
+        type:"crypto"
+    },
+
+    {
+        symbol:"ETHUSDT",
+        name:"Ethereum",
+        type:"crypto"
+    },
+
+    {
+        symbol:"BNBUSDT",
+        name:"BNB",
+        type:"crypto"
+    },
+
+    {
+        symbol:"SOLUSDT",
+        name:"Solana",
+        type:"crypto"
+    },
+
+    {
+        symbol:"XRPUSDT",
+        name:"XRP",
+        type:"crypto"
+    },
+
+    {
+        symbol:"DOGEUSDT",
+        name:"Dogecoin",
+        type:"crypto"
+    },
+
+    {
+        symbol:"ADAUSDT",
+        name:"Cardano",
+        type:"crypto"
+    },
+
+    {
+        symbol:"AVAXUSDT",
+        name:"Avalanche",
+        type:"crypto"
+    },
+
+    {
+        symbol:"PEPEUSDT",
+        name:"Pepe",
+        type:"crypto"
+    },
+
+    {
+        symbol:"LINKUSDT",
+        name:"Chainlink",
+        type:"crypto"
+    },
+
+    {
+        symbol:"XAUUSD",
+        name:"Gold",
+        type:"market"
+    },
+
+    {
+        symbol:"EURUSD",
+        name:"Euro / Dollar",
+        type:"market"
+    },
+
+    {
+        symbol:"GBPUSD",
+        name:"Pound / Dollar",
+        type:"market"
+    },
+
+    {
+        symbol:"USDJPY",
+        name:"Dollar / Yen",
+        type:"market"
+    },
+
+    {
+        symbol:"US500",
+        name:"S&P 500",
+        type:"market"
+    },
+
+    {
+        symbol:"US30",
+        name:"Dow Jones",
+        type:"market"
+    },
+
+    {
+        symbol:"USOIL",
+        name:"Crude Oil",
+        type:"market"
+    }
+
+];
+
+/* ============================================================
+   HELPERS
+============================================================ */
+
+function escapeHTML(value){
+
+    if(value === null || value === undefined){
+        return "";
+    }
+
+    return String(value)
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+}
+
+function number(value, digits = 2){
+
+    if(
+        value === null ||
+        value === undefined ||
+        value === "" ||
+        Number.isNaN(Number(value))
+    ){
+        return "--";
+    }
+
+    return Number(value).toLocaleString(
+        "en-US",
+        {
+            minimumFractionDigits:digits,
+            maximumFractionDigits:digits
+        }
+    );
+}
+
+function percent(value){
+
+    if(
+        value === null ||
+        value === undefined ||
+        Number.isNaN(Number(value))
+    ){
+        return "--";
+    }
+
+    return Number(value).toFixed(2) + "%";
+}
+
+function signalClass(signal){
+
+    const s =
+        String(signal || "NEUTRAL").toUpperCase();
+
+    if(s === "BUY"){
+        return "buy";
+    }
+
+    if(s === "SELL"){
+        return "sell";
+    }
+
+    return "neutral";
+}
+
+function signalText(signal){
+
+    const s =
+        String(signal || "NEUTRAL").toUpperCase();
+
+    if(
+        s === "BUY" ||
+        s === "SELL" ||
+        s === "NEUTRAL"
+    ){
+        return s;
+    }
+
+    return "NEUTRAL";
+}
+
+function showToast(
+    message,
+    type = "info"
+){
+
+    const el =
+        document.getElementById("toast");
+
+    el.textContent = message;
+
+    el.className =
+        "show " + type;
+
+    clearTimeout(
+        showToast.timer
+    );
+
+    showToast.timer =
+        setTimeout(
+            () => {
+                el.className = "";
+            },
+            3500
+        );
+}
+
+/* ============================================================
+   FETCH WITH TIMEOUT
+============================================================ */
+
+async function apiFetch(
+    path,
+    options = {},
+    timeout = 20000
+){
+
+    const controller =
+        new AbortController();
+
+    const timer =
+        setTimeout(
+            () => controller.abort(),
+            timeout
+        );
+
+    try{
+
+        const response =
+            await fetch(
+                API_BASE + path,
+                {
+                    ...options,
+                    signal:
+                        controller.signal,
+                    headers:{
+                        "Accept":
+                            "application/json",
+                        ...(options.headers || {})
+                    }
+                }
+            );
+
+        if(!response.ok){
+
+            let detail = "";
+
+            try{
+                const error =
+                    await response.json();
+
+                detail =
+                    error.detail
+                    ? ": " + error.detail
+                    : "";
+            }
+            catch(e){}
+
+            throw new Error(
+                "HTTP " +
+                response.status +
+                detail
+            );
+        }
+
+        return await response.json();
+
+    }
+    catch(error){
+
+        if(
+            error.name === "AbortError"
+        ){
+
+            throw new Error(
+                "Request timeout"
+            );
+        }
+
+        throw error;
+
+    }
+    finally{
+
+        clearTimeout(timer);
+
+    }
+
+}
+
+/* ============================================================
+   WATCHLIST
+============================================================ */
+
+function renderWatchlist(){
+
+    const box =
+        document.getElementById(
+            "watchlist"
+        );
+
+    let list =
+        ASSETS.filter(
+            asset =>
+                assetFilter === "all" ||
+                asset.type === assetFilter
+        );
+
+    box.innerHTML =
+        list.map(
+            asset => {
+
+                const price =
+                    getCachedPrice(
+                        asset.symbol
+                    );
+
+                return `
+                <button
+                    class="asset ${
+                        asset.symbol === selectedSymbol
+                            ? "active"
+                            : ""
+                    }"
+                    onclick="selectAsset('${asset.symbol}')">
+
+                    <div>
+                        <div class="asset-symbol">
+                            ${escapeHTML(asset.symbol)}
+                        </div>
+
+                        <div class="asset-name">
+                            ${escapeHTML(asset.name)}
+                        </div>
+                    </div>
+
+                    <div class="asset-price">
+
+                        <div>
+                            ${
+                                price
+                                    ? number(price.price, priceDigits(asset.symbol))
+                                    : "--"
+                            }
+                        </div>
+
+                        <div class="asset-change ${
+                            price
+                                ? (
+                                    Number(price.change_percent) > 0
+                                        ? "up"
+                                        : Number(price.change_percent) < 0
+                                            ? "down"
+                                            : "neutral"
+                                )
+                                : "neutral"
+                        }">
+
+                            ${
+                                price
+                                    ? percent(price.change_percent)
+                                    : "--"
+                            }
+
+                        </div>
+
+                    </div>
+
+                </button>
+                `;
+            }
+        ).join("");
+
+}
+
+const priceCache = {};
+
+function priceDigits(symbol){
+
+    if(
+        symbol === "BTCUSDT"
+    ){
+        return 2;
+    }
+
+    if(
+        symbol === "ETHUSDT" ||
+        symbol === "BNBUSDT"
+    ){
+        return 2;
+    }
+
+    if(
+        symbol.endsWith("USDT")
+    ){
+        return 6;
+    }
+
+    return 4;
+}
+
+function getCachedPrice(symbol){
+
+    return priceCache[symbol] || null;
+}
+
+function filterAssets(
+    filter,
+    button
+){
+
+    assetFilter =
+        filter;
+
+    document
+        .querySelectorAll(".tab")
+        .forEach(
+            el =>
+                el.classList.remove("active")
+        );
+
+    button.classList.add("active");
+
+    renderWatchlist();
+
+}
+
+async function loadSnapshot(){
+
+    const symbols =
+        ASSETS.map(
+            x => x.symbol
+        ).join(",");
+
+    try{
+
+        const data =
+            await apiFetch(
+                "/api/market-snapshot?symbols=" +
+                encodeURIComponent(symbols),
+                {},
+                25000
+            );
+
+        if(
+            data &&
+            data.data
+        ){
+
+            Object.entries(
+                data.data
+            ).forEach(
+                ([symbol, value]) => {
+
+                    if(
+                        value &&
+                        value.status === "ok"
+                    ){
+                        priceCache[symbol] =
+                            value;
+                    }
+
+                }
+            );
+
+            currentSnapshot =
+                data;
+
+            renderWatchlist();
+
+            updateSelectedPrice();
+
+        }
+
+    }
+    catch(error){
+
+        console.error(
+            "Snapshot error:",
+            error
+        );
+
+        showToast(
+            "Không tải được market snapshot: " +
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+function selectAsset(symbol){
+
+    selectedSymbol =
+        symbol;
+
+    const asset =
+        ASSETS.find(
+            x =>
+                x.symbol === symbol
+        );
+
+    document.getElementById(
+        "selectedSymbol"
+    ).textContent =
+        symbol;
+
+    document.getElementById(
+        "selectedSource"
+    ).textContent =
+        asset
+            ? (
+                asset.type === "crypto"
+                    ? "Binance · Crypto · Analysis Only"
+                    : "Market Data · Analysis Only"
+            )
+            : "Analysis Only";
+
+    document.getElementById(
+        "newsSymbol"
+    ).textContent =
+        symbol;
+
+    document.getElementById(
+        "chartSymbolLabel"
+    ).textContent =
+        symbol;
+
+    renderWatchlist();
+
+    updateSelectedPrice();
+
+    setChartSymbol();
+
+    loadNews();
+
+}
+
+/* ============================================================
+   SELECTED PRICE
+============================================================ */
+
+function updateSelectedPrice(){
+
+    const data =
+        priceCache[selectedSymbol];
+
+    if(!data){
+        document.getElementById(
+            "marketPrice"
+        ).textContent =
+            "--";
+
+        document.getElementById(
+            "marketChange"
+        ).textContent =
+            "--";
+
+        return;
+    }
+
+    document.getElementById(
+        "marketPrice"
+    ).textContent =
+        number(
+            data.price,
+            priceDigits(
+                selectedSymbol
+            )
+        );
+
+    const change =
+        Number(
+            data.change_percent || 0
+        );
+
+    const changeEl =
+        document.getElementById(
+            "marketChange"
+        );
+
+    changeEl.textContent =
+        (
+            change >= 0
+                ? "+"
+                : ""
+        ) +
+        change.toFixed(4) +
+        "%";
+
+    changeEl.className =
+        "status-small " +
+        (
+            change > 0
+                ? "up"
+                : change < 0
+                    ? "down"
+                    : "neutral"
+        );
+
+}
+
+/* ============================================================
+   BACKEND
+============================================================ */
+
+async function checkBackend(){
+
+    const start =
+        performance.now();
+
+    const status =
+        document.getElementById(
+            "backendStatus"
+        );
+
+    status.textContent =
+        "Đang kiểm tra...";
+
+    try{
+
+        const data =
+            await apiFetch(
+                "/api/health",
+                {},
+                15000
+            );
+
+        const latency =
+            Math.round(
+                performance.now() -
+                start
+            );
+
+        status.textContent =
+            "ONLINE";
+
+        status.className =
+            "status-value up";
+
+        document.getElementById(
+            "backendVersion"
+        ).textContent =
+            "V" +
+            (
+                data.version ||
+                "7.2.0"
+            );
+
+        document.getElementById(
+            "apiLatency"
+        ).textContent =
+            "Latency: " +
+            latency +
+            " ms";
+
+        document.getElementById(
+            "footerBackend"
+        ).textContent =
+            "ONLINE";
+
+        showToast(
+            "Backend hoạt động bình thường.",
+            "success"
+        );
+
+        return data;
+
+    }
+    catch(error){
+
+        status.textContent =
+            "OFFLINE";
+
+        status.className =
+            "status-value down";
+
+        document.getElementById(
+            "backendVersion"
+        ).textContent =
+            error.message;
+
+        document.getElementById(
+            "footerBackend"
+        ).textContent =
+            "ERROR";
+
+        showToast(
+            "Failed to fetch: " +
+            error.message,
+            "error"
+        );
+
+        return null;
+
+    }
+
+}
+
+/* ============================================================
+   ANALYSIS
+============================================================ */
+
+async function runAnalysis(){
+
+    const button =
+        document.querySelector(
+            ".primary-btn"
+        );
+
+    const oldText =
+        button
+            ? button.textContent
+            : "";
+
+    if(button){
+
+        button.disabled =
+            true;
+
+        button.textContent =
+            "⏳ Đang phân tích...";
+
+    }
+
+    try{
+
+        const start =
+            performance.now();
+
+        const data =
+            await apiFetch(
+                "/api/analyze-live-mtf?symbol=" +
+                encodeURIComponent(
+                    selectedSymbol
+                ) +
+                "&limit=300",
+                {},
+                60000
+            );
+
+        const latency =
+            Math.round(
+                performance.now() -
+                start
+            );
+
+        currentAnalysis =
+            data;
+
+        renderAnalysis(
+            data
+        );
+
+        document.getElementById(
+            "apiLatency"
+        ).textContent =
+            "Latency: " +
+            latency +
+            " ms";
+
+        showToast(
+            "Phân tích " +
+            selectedSymbol +
+            " hoàn tất.",
+            "success"
+        );
+
+        /*
+           Load news sau khi analysis xong.
+           Không chặn UI nếu news lỗi.
+        */
+
+        loadNews();
+
+        /*
+           Lịch sử cũng cập nhật.
+        */
+
+        loadHistory();
+
+    }
+    catch(error){
+
+        console.error(
+            "Analysis error:",
+            error
+        );
+
+        showToast(
+            "Phân tích lỗi: " +
+            error.message,
+            "error"
+        );
+
+    }
+    finally{
+
+        if(button){
+
+            button.disabled =
+                false;
+
+            button.textContent =
+                oldText;
+
+        }
+
+    }
+
+}
+
+/* ============================================================
+   RENDER ANALYSIS
+============================================================ */
+
+function renderAnalysis(data){
+
+    if(!data){
+        return;
+    }
+
+    const consensus =
+        data.consensus ||
+        {};
+
+    const signal =
+        signalText(
+            consensus.signal ||
+            consensus.consensus
+        );
+
+    const confidence =
+        consensus.confidence;
+
+    const mainSignal =
+        document.getElementById(
+            "mainSignal"
+        );
+
+    mainSignal.textContent =
+        signal;
+
+    mainSignal.className =
+        "signal " +
+        signalClass(signal);
+
+    document.getElementById(
+        "confidence"
+    ).textContent =
+        confidence !== undefined
+            ? Number(confidence).toFixed(2) + "%"
+            : "--";
+
+    const high =
+        Boolean(
+            consensus.high_conviction
+        );
+
+    const conviction =
+        document.getElementById(
+            "convictionBadge"
+        );
+
+    conviction.textContent =
+        high
+            ? "HIGH CONVICTION"
+            : "NORMAL CONVICTION";
+
+    conviction.className =
+        "conviction " +
+        (
+            high
+                ? "high"
+                : "normal"
+        );
+
+    /* ================= SCORES ================= */
+
+    const buy =
+        Number(
+            consensus.buy_score || 0
+        );
+
+    const sell =
+        Number(
+            consensus.sell_score || 0
+        );
+
+    const edge =
+        Number(
+            consensus.directional_edge || 0
+        );
+
+    document.getElementById(
+        "buyScore"
+    ).textContent =
+        (buy * 100).toFixed(2) + "%";
+
+    document.getElementById(
+        "sellScore"
+    ).textContent =
+        (sell * 100).toFixed(2) + "%";
+
+    document.getElementById(
+        "buyBar"
+    ).style.width =
+        Math.min(
+            100,
+            Math.max(
+                0,
+                buy * 100
+            )
+        ) + "%";
+
+    document.getElementById(
+        "sellBar"
+    ).style.width =
+        Math.min(
+            100,
+            Math.max(
+                0,
+                sell * 100
+            )
+        ) + "%";
+
+    document.getElementById(
+        "directionalEdge"
+    ).textContent =
+        (
+            edge * 100
+        ).toFixed(2) + "%";
+
+    /* ================= MTF ================= */
+
+    renderMTF(
+        data
+    );
+
+    /* ================= LEVELS ================= */
+
+    renderLevels(
+        data
+    );
+
+    /* ================= TECHNICAL ================= */
+
+    renderTechnical(
+        data
+    );
+
+    /* ================= REASONING ================= */
+
+    renderReasoning(
+        data
+    );
+
+    /* ================= PRICE ================= */
+
+    const price =
+        extractPrice(
+            data
+        );
+
+    if(price !== null){
+
+        document.getElementById(
+            "marketPrice"
+        ).textContent =
+            number(
+                price,
+                priceDigits(
+                    selectedSymbol
+                )
+            );
+
+    }
+
+    /* ================= LEVEL VALUES ================= */
+
+    const levels =
+        findObject(
+            data,
+            [
+                "levels",
+                "key_levels",
+                "price_levels"
+            ]
+        ) || {};
+
+    setText(
+        "entry",
+        pick(
+            data,
+            [
+                "entry",
+                "entry_price"
+            ],
+            levels.entry
+        )
+    );
+
+    setText(
+        "sl",
+        pick(
+            data,
+            [
+                "sl",
+                "stop_loss",
+                "stopLoss"
+            ],
+            levels.stop_loss
+        )
+    );
+
+    setText(
+        "tp1",
+        pick(
+            data,
+            [
+                "tp1",
+                "take_profit_1"
+            ],
+            levels.tp1
+        )
+    );
+
+    setText(
+        "tp2",
+        pick(
+            data,
+            [
+                "tp2",
+                "take_profit_2"
+            ],
+            levels.tp2
+        )
+    );
+
+    setText(
+        "tp3",
+        pick(
+            data,
+            [
+                "tp3",
+                "take_profit_3"
+            ],
+            levels.tp3
+        )
+    );
+
+    const rr =
+        pick(
+            data,
+            [
+                "rr",
+                "risk_reward"
+            ],
+            levels.rr
+        );
+
+    setText(
+        "rr",
+        rr
+    );
+
+    document.getElementById(
+        "analysisTime"
+    ).textContent =
+        new Date().toLocaleTimeString(
+            "vi-VN"
+        );
+
+}
+
+/* ============================================================
+   GENERIC DATA HELPERS
+============================================================ */
+
+function setText(
+    id,
+    value
+){
+
+    const el =
+        document.getElementById(id);
+
+    if(!el){
+        return;
+    }
+
+    if(
+        value === undefined ||
+        value === null ||
+        value === ""
+    ){
+
+        el.textContent =
+            "--";
+
+        return;
+    }
+
+    if(
+        typeof value === "number"
+    ){
+
+        el.textContent =
+            number(
+                value,
+                4
+            );
+
+        return;
+
+    }
+
+    el.textContent =
+        String(value);
+
+}
+
+function pick(
+    root,
+    keys,
+    fallback = undefined
+){
+
+    for(
+        const key of keys
+    ){
+
+        if(
+            root &&
+            root[key] !== undefined &&
+            root[key] !== null
+        ){
+
+            return root[key];
+
+        }
+
+    }
+
+    return fallback;
+
+}
+
+function findObject(
+    root,
+    keys
+){
+
+    for(
+        const key of keys
+    ){
+
+        if(
+            root &&
+            root[key] &&
+            typeof root[key] === "object"
+        ){
+
+            return root[key];
+
+        }
+
+    }
+
+    return null;
+
+}
+
+function findValue(
+    root,
+    keys
+){
+
+    if(!root){
+        return null;
+    }
+
+    for(
+        const key of keys
+    ){
+
+        if(
+            root[key] !== undefined &&
+            root[key] !== null
+        ){
+
+            return root[key];
+
+        }
+
+    }
+
+    return null;
+
+}
+
+function extractPrice(data){
+
+    const direct =
+        findValue(
+            data,
+            [
+                "price",
+                "current_price",
+                "currentPrice"
+            ]
+        );
+
+    if(
+        direct !== null
+    ){
+        return Number(direct);
+    }
+
+    const market =
+        findObject(
+            data,
+            [
+                "market",
+                "quote",
+                "latest"
+            ]
+        );
+
+    if(market){
+
+        const p =
+            findValue(
+                market,
+                [
+                    "price",
+                    "last",
+                    "close"
+                ]
+            );
+
+        if(
+            p !== null
+        ){
+            return Number(p);
+        }
+
+    }
+
+    return null;
+}
+
+/* ============================================================
+   MTF
+============================================================ */
+
+function renderMTF(data){
+
+    const container =
+        document.getElementById(
+            "mtfGrid"
+        );
+
+    const frames =
+        data.timeframes ||
+        data.mtf ||
+        data.results ||
+        {};
+
+    const names =
+        [
+            "M1",
+            "M5",
+            "M15",
+            "H1",
+            "H4",
+            "D1",
+            "W1"
+        ];
+
+    let count =
+        0;
+
+    let html = "";
+
+    names.forEach(
+        timeframe => {
+
+            let item =
+                frames[timeframe];
+
+            if(
+                !item &&
+                frames[timeframe.toLowerCase()]
+            ){
+
+                item =
+                    frames[
+                        timeframe.toLowerCase()
+                    ];
+
+            }
+
+            if(
+                !item &&
+                Array.isArray(frames)
+            ){
+
+                item =
+                    frames.find(
+                        x =>
+                            String(
+                                x.timeframe ||
+                                x.tf ||
+                                ""
+                            ).toUpperCase() ===
+                            timeframe
+                    );
+
+            }
+
+            const sig =
+                typeof item === "string"
+                    ? item
+                    : (
+                        item
+                            ? (
+                                item.signal ||
+                                item.consensus ||
+                                item.direction ||
+                                "NEUTRAL"
+                            )
+                            : "NEUTRAL"
+                    );
+
+            if(
+                sig === "BUY" ||
+                sig === "SELL"
+            ){
+                count++;
+            }
+
+            html += `
+                <div class="mtf-item">
+
+                    <div class="mtf-time">
+                        ${timeframe}
+                    </div>
+
+                    <div class="mtf-signal ${
+                        signalClass(sig)
+                    }">
+                        ${escapeHTML(
+                            signalText(sig)
+                        )}
+                    </div>
+
+                </div>
+            `;
+
+        }
+    );
+
+    container.innerHTML =
+        html;
+
+    const consensus =
+        data.consensus || {};
+
+    document.getElementById(
+        "mtfSummary"
+    ).textContent =
+        (
+            consensus.same_direction_frames !== undefined
+                ? consensus.same_direction_frames
+                : count
+        ) +
+        " directional frames";
+
+}
+
+/* ============================================================
+   TECHNICAL
+============================================================ */
+
+function renderTechnical(data){
+
+    const technical =
+        findObject(
+            data,
+            [
+                "technical",
+                "indicators",
+                "technical_analysis"
+            ]
+        ) || {};
+
+    const indicators =
+        technical.indicators &&
+        typeof technical.indicators === "object"
+            ? technical.indicators
+            : technical;
+
+    const ema20 =
+        findValue(
+            indicators,
+            [
+                "ema20",
+                "EMA20",
+                "ema_20"
+            ]
+        );
+
+    const ema50 =
+        findValue(
+            indicators,
+            [
+                "ema50",
+                "EMA50",
+                "ema_50"
+            ]
+        );
+
+    const rsi =
+        findValue(
+            indicators,
+            [
+                "rsi",
+                "RSI",
+                "rsi14",
+                "RSI14"
+            ]
+        );
+
+    const macd =
+        findValue(
+            indicators,
+            [
+                "macd",
+                "MACD"
+            ]
+        );
+
+    const atr =
+        findValue(
+            indicators,
+            [
+                "atr",
+                "ATR",
+                "atr14",
+                "ATR14"
+            ]
+        );
+
+    const bollinger =
+        findValue(
+            indicators,
+            [
+                "bollinger",
+                "Bollinger",
+                "bb"
+            ]
+        );
+
+    const structure =
+        findValue(
+            data,
+            [
+                "structure",
+                "market_structure"
+            ]
+        );
+
+    const candle =
+        findValue(
+            data,
+            [
+                "candlestick",
+                "candle",
+                "candle_pattern"
+            ]
+        );
+
+    setText(
+        "ema20",
+        formatIndicator(
+            ema20
+        )
+    );
+
+    setText(
+        "ema50",
+        formatIndicator(
+            ema50
+        )
+    );
+
+    setText(
+        "rsi",
+        formatIndicator(
+            rsi
+        )
+    );
+
+    setText(
+        "macd",
+        formatIndicator(
+            macd
+        )
+    );
+
+    setText(
+        "atr",
+        formatIndicator(
+            atr
+        )
+    );
+
+    setText(
+        "bollinger",
+        formatIndicator(
+            bollinger
+        )
+    );
+
+    setText(
+        "structure",
+        formatIndicator(
+            structure
+        )
+    );
+
+    setText(
+        "candlestick",
+        formatIndicator(
+            candle
+        )
+    );
+
+}
+
+function formatIndicator(value){
+
+    if(
+        value === undefined ||
+        value === null
+    ){
+        return "--";
+    }
+
+    if(
+        typeof value === "number"
+    ){
+        return number(
+            value,
+            4
+        );
+    }
+
+    if(
+        typeof value === "object"
+    ){
+
+        if(
+            value.value !== undefined
+        ){
+
+            return String(
+                value.value
+            );
+
+        }
+
+        if(
+            value.signal !== undefined
+        ){
+
+            return String(
+                value.signal
+            );
+
+        }
+
+        return JSON.stringify(
+            value
+        );
+
+    }
+
+    return String(value);
+
+}
+
+/* ============================================================
+   REASONING
+============================================================ */
+
+function renderReasoning(data){
+
+    const consensus =
+        data.consensus || {};
+
+    const structure =
+        findValue(
+            data,
+            [
+                "structure",
+                "market_structure"
+            ]
+        );
+
+    const trend =
+        findValue(
+            data,
+            [
+                "trend",
+                "trend_analysis"
+            ]
+        );
+
+    const momentum =
+        findValue(
+            data,
+            [
+                "momentum",
+                "momentum_analysis"
+            ]
+        );
+
+    const reasoning =
+        findValue(
+            data,
+            [
+                "reasoning",
+                "ai_reasoning",
+                "explanation"
+            ]
+        );
+
+    setText(
+        "reasonStructure",
+        structure !== null
+            ? formatIndicator(structure)
+            : "Market structure đang được tổng hợp từ MTF."
+    );
+
+    setText(
+        "reasonTrend",
+        trend !== null
+            ? formatIndicator(trend)
+            : "Trend được tổng hợp từ EMA, structure và các timeframe."
+    );
+
+    setText(
+        "reasonMomentum",
+        momentum !== null
+            ? formatIndicator(momentum)
+            : "Momentum được đánh giá qua RSI, MACD và các tín hiệu liên quan."
+    );
+
+    setText(
+        "reasonConviction",
+        reasoning !== null
+            ? formatIndicator(reasoning)
+            : (
+                consensus.high_conviction
+                    ? "Hệ thống xác định tín hiệu đạt điều kiện High Conviction."
+                    : "Tín hiệu chưa đạt toàn bộ điều kiện High Conviction."
+            )
+    );
+
+}
+
+/* ============================================================
+   LEVELS
+============================================================ */
+
+function renderLevels(data){
+
+    const levels =
+        findObject(
+            data,
+            [
+                "levels",
+                "key_levels",
+                "price_levels"
+            ]
+        ) || {};
+
+    setText(
+        "r2",
+        pick(
+            levels,
+            [
+                "r2",
+                "resistance2",
+                "resistance_2"
+            ]
+        )
+    );
+
+    setText(
+        "r1",
+        pick(
+            levels,
+            [
+                "r1",
+                "resistance1",
+                "resistance_1"
+            ]
+        )
+    );
+
+    setText(
+        "levelCurrent",
+        extractPrice(data)
+    );
+
+    setText(
+        "s1",
+        pick(
+            levels,
+            [
+                "s1",
+                "support1",
+                "support_1"
+            ]
+        )
+    );
+
+    setText(
+        "s2",
+        pick(
+            levels,
+            [
+                "s2",
+                "support2",
+                "support_2"
+            ]
+        )
+    );
+
+}
+
+/* ============================================================
+   NEWS
+============================================================ */
+
+async function loadNews(){
+
+    try{
+
+        const data =
+            await apiFetch(
+                "/api/news?symbol=" +
+                encodeURIComponent(
+                    selectedSymbol
+                ) +
+                "&limit=8",
+                {},
+                25000
+            );
+
+        const items =
+            Array.isArray(data)
+                ? data
+                : (
+                    data.news ||
+                    data.items ||
+                    data.data ||
+                    []
+                );
+
+        renderNews(
+            items
+        );
+
+    }
+    catch(error){
+
+        console.error(
+            "News error:",
+            error
+        );
+
+        const html = `
+            <div class="news-item">
+
+                <div class="news-title">
+                    Không tải được tin tức.
+                </div>
+
+                <div class="news-meta">
+                    ${escapeHTML(
+                        error.message
+                    )}
+                </div>
+
+            </div>
+        `;
+
+        document.getElementById(
+            "newsList"
+        ).innerHTML =
+            html;
+
+        document.getElementById(
+            "newsPageList"
+        ).innerHTML =
+            html;
+
+    }
+
+}
+
+function renderNews(items){
+
+    if(
+        !Array.isArray(items) ||
+        items.length === 0
+    ){
+
+        const empty = `
+            <div class="news-item">
+
+                <div class="news-title">
+                    Chưa có tin tức mới.
+                </div>
+
+                <div class="news-meta">
+                    ${escapeHTML(
+                        selectedSymbol
+                    )}
+                </div>
+
+            </div>
+        `;
+
+        document.getElementById(
+            "newsList"
+        ).innerHTML =
+            empty;
+
+        document.getElementById(
+            "newsPageList"
+        ).innerHTML =
+            empty;
+
+        return;
+
+    }
+
+    const html =
+        items.map(
+            item => {
+
+                const title =
+                    item.title ||
+                    item.headline ||
+                    item.name ||
+                    "Market News";
+
+                const source =
+                    item.source ||
+                    item.publisher ||
+                    item.site ||
+                    "";
+
+                const time =
+                    item.published ||
+                    item.published_at ||
+                    item.time ||
+                    "";
+
+                return `
+                    <div class="news-item">
+
+                        <div class="news-title">
+                            ${escapeHTML(title)}
+                        </div>
+
+                        <div class="news-meta">
+                            ${escapeHTML(source)}
+                            ${
+                                time
+                                    ? " · " +
+                                      escapeHTML(time)
+                                    : ""
+                            }
+                        </div>
+
+                    </div>
+                `;
+
+            }
+        ).join("");
+
+    document.getElementById(
+        "newsList"
+    ).innerHTML =
+        html;
+
+    document.getElementById(
+        "newsPageList"
+    ).innerHTML =
+        html;
+
+}
+
+/* ============================================================
+   HISTORY
+============================================================ */
+
+async function loadHistory(){
+
+    try{
+
+        const data =
+            await apiFetch(
+                "/api/history?limit=100",
+                {},
+                20000
+            );
+
+        const items =
+            Array.isArray(data)
+                ? data
+                : (
+                    data.history ||
+                    data.items ||
+                    data.data ||
+                    []
+                );
+
+        renderHistory(
+            items
+        );
+
+    }
+    catch(error){
+
+        console.error(
+            "History error:",
+            error
+        );
+
+        document.getElementById(
+            "historyBody"
+        ).innerHTML = `
+            <tr>
+                <td colspan="7">
+                    Không tải được lịch sử:
+                    ${escapeHTML(
+                        error.message
+                    )}
+                </td>
+            </tr>
+        `;
+
+    }
+
+}
+
+function renderHistory(items){
+
+    if(
+        !Array.isArray(items) ||
+        items.length === 0
+    ){
+
+        document.getElementById(
+            "historyBody"
+        ).innerHTML = `
+            <tr>
+                <td colspan="7">
+                    Chưa có tín hiệu BUY/SELL.
+                </td>
+            </tr>
+        `;
+
+        return;
+
+    }
+
+    document.getElementById(
+        "historyBody"
+    ).innerHTML =
+        items.map(
+            item => {
+
+                const signal =
+                    signalText(
+                        item.signal ||
+                        item.consensus
+                    );
+
+                const time =
+                    item.timestamp ||
+                    item.time ||
+                    item.created_at ||
+                    "--";
+
+                const symbol =
+                    item.symbol ||
+                    "--";
+
+                const confidence =
+                    item.confidence !== undefined
+                        ? Number(
+                            item.confidence
+                        ).toFixed(2) + "%"
+                        : "--";
+
+                const price =
+                    item.price !== undefined
+                        ? number(
+                            item.price,
+                            priceDigits(symbol)
+                        )
+                        : "--";
+
+                const engine =
+                    item.engine_version ||
+                    item.engine ||
+                    "7.1";
+
+                const status =
+                    item.status ||
+                    (
+                        item.result ||
+                        "OPEN"
+                    );
+
+                return `
+                    <tr>
+
+                        <td>
+                            ${escapeHTML(time)}
+                        </td>
+
+                        <td>
+                            <strong>
+                                ${escapeHTML(symbol)}
+                            </strong>
+                        </td>
+
+                        <td>
+                            <span class="pill ${
+                                signalClass(signal)
+                            }">
+                                ${signal}
+                            </span>
+                        </td>
+
+                        <td>
+                            ${confidence}
+                        </td>
+
+                        <td>
+                            ${price}
+                        </td>
+
+                        <td>
+                            ${escapeHTML(engine)}
+                        </td>
+
+                        <td>
+                            ${escapeHTML(
+                                String(status)
+                                    .toUpperCase()
+                            )}
+                        </td>
+
+                    </tr>
+                `;
+
+            }
+        ).join("");
+
+}
+
+/* ============================================================
+   CLEAR HISTORY
+============================================================ */
+
+async function clearHistory(){
+
+    if(
+        !confirm(
+            "Bạn có chắc muốn xóa toàn bộ lịch sử tín hiệu?"
+        )
+    ){
+        return;
+    }
+
+    try{
+
+        await apiFetch(
+            "/api/history",
+            {
+                method:"DELETE"
+            },
+            15000
+        );
+
+        showToast(
+            "Đã xóa lịch sử.",
+            "success"
+        );
+
+        loadHistory();
+
+    }
+    catch(error){
+
+        showToast(
+            "Không thể xóa lịch sử: " +
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+/* ============================================================
+   TRADINGVIEW
+============================================================ */
+
+function tradingViewSymbol(
+    symbol
+){
+
+    const map = {
+
+        BTCUSDT:
+            "BINANCE:BTCUSDT",
+
+        ETHUSDT:
+            "BINANCE:ETHUSDT",
+
+        BNBUSDT:
+            "BINANCE:BNBUSDT",
+
+        SOLUSDT:
+            "BINANCE:SOLUSDT",
+
+        XRPUSDT:
+            "BINANCE:XRPUSDT",
+
+        DOGEUSDT:
+            "BINANCE:DOGEUSDT",
+
+        ADAUSDT:
+            "BINANCE:ADAUSDT",
+
+        AVAXUSDT:
+            "BINANCE:AVAXUSDT",
+
+        LINKUSDT:
+            "BINANCE:LINKUSDT",
+
+        PEPEUSDT:
+            "BINANCE:PEPEUSDT",
+
+        XAUUSD:
+            "OANDA:XAUUSD",
+
+        EURUSD:
+            "FX:EURUSD",
+
+        GBPUSD:
+            "FX:GBPUSD",
+
+        USDJPY:
+            "FX:USDJPY",
+
+        US500:
+            "FOREXCOM:SPXUSD",
+
+        US30:
+            "FOREXCOM:DJI",
+
+        USOIL:
+            "TVC:USOIL"
+
+    };
+
+    return (
+        map[symbol] ||
+        "BINANCE:" +
+        symbol
+    );
+
+}
+
+function setChartSymbol(){
+
+    const tv =
+        tradingViewSymbol(
+            selectedSymbol
+        );
+
+    document.getElementById(
+        "chartSymbolLabel"
+    ).textContent =
+        selectedSymbol;
+
+    /*
+       TradingView advanced chart embed.
+       Dùng URL widget để không cần
+       thư viện JS bên ngoài.
+    */
+
+    const url =
+        "https://www.tradingview.com/widgetembed/?" +
+        "frameElementId=tradingview_chart" +
+        "&symbol=" +
+        encodeURIComponent(tv) +
+        "&interval=60" +
+        "&hidesidetoolbar=0" +
+        "&hidetoptoolbar=0" +
+        "&symboledit=1" +
+        "&saveimage=0" +
+        "&toolbarbg=%23091018" +
+        "&studies=[]" +
+        "&theme=dark" +
+        "&style=1" +
+        "&timezone=Etc%2FUTC" +
+        "&withdateranges=1" +
+        "&hideideas=1";
+
+    document.getElementById(
+        "tvFrame"
+    ).src =
+        url;
+
+}
+
+/* ============================================================
+   NAVIGATION
+============================================================ */
+
+function switchPage(
+    page,
+    button
+){
+
+    document
+        .querySelectorAll(".page")
+        .forEach(
+            el =>
+                el.classList.remove(
+                    "active"
+                )
+        );
+
+    const target =
+        document.getElementById(
+            "page-" + page
+        );
+
+    if(target){
+        target.classList.add(
+            "active"
+        );
+    }
+
+    document
+        .querySelectorAll(".nav button")
+        .forEach(
+            el =>
+                el.classList.remove(
+                    "active"
+                )
+        );
+
+    if(button){
+        button.classList.add(
+            "active"
+        );
+    }
+
+    if(page === "chart"){
+        setChartSymbol();
+    }
+
+    if(page === "history"){
+        loadHistory();
+    }
+
+    if(page === "news"){
+        loadNews();
+    }
+
+}
+
+/* ============================================================
+   REFRESH
+============================================================ */
+
+async function refreshAll(){
+
+    showToast(
+        "Đang cập nhật dữ liệu...",
+        "info"
+    );
+
+    await loadSnapshot();
+
+    await checkBackend();
+
+    await runAnalysis();
+
+}
+
+/* ============================================================
+   INITIALIZATION
+============================================================ */
+
+async function init(){
+
+    console.log(
+        "NovaTrade AI V7.2"
+    );
+
+    console.log(
+        "API:",
+        API_BASE
+    );
+
+    renderWatchlist();
+
+    setChartSymbol();
+
+    await checkBackend();
+
+    await loadSnapshot();
+
+    await loadHistory();
+
+    await loadNews();
+
+    /*
+       Phân tích tự động BTCUSDT
+       khi dashboard khởi động.
+    */
+
+    await runAnalysis();
+
+}
+
+/* ============================================================
+   AUTO REFRESH
+============================================================ */
+
+/*
+   Snapshot:
+   mỗi 15 giây.
+
+   Không chạy analyze MTF liên tục để tránh
+   tạo quá nhiều request tới Render.
+*/
+
+setInterval(
+    async () => {
+
+        try{
+
+            await loadSnapshot();
+
+        }
+        catch(error){
+
+            console.error(
+                "Auto snapshot:",
+                error
+            );
+
+        }
+
+    },
+    15000
+);
+
+/*
+   MTF analysis:
+   mỗi 60 giây.
+*/
+
+setInterval(
+    async () => {
+
+        try{
+
+            await runAnalysis();
+
+        }
+        catch(error){
+
+            console.error(
+                "Auto analysis:",
+                error
+            );
+
+        }
+
+    },
+    60000
+);
+
+/* ============================================================
+   START
+============================================================ */
+
+window.addEventListener(
+    "DOMContentLoaded",
+    init
+);
+
 </script>
+
 </body>
 </html>

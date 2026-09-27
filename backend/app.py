@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import math
+import threading
+import time
+
 from concurrent.futures import (
     ThreadPoolExecutor,
     as_completed,
 )
+
 from typing import Any, List
 
 import numpy as np
@@ -32,6 +36,7 @@ from backend.config import (
 
 from backend.data_adapter import (
     fetch_market_dataframe,
+    fetch_market_dataframe_cached,
     fetch_market_klines,
     check_binance_symbol,
     get_symbol_info,
@@ -65,9 +70,23 @@ from backend.news import (
 )
 
 
-APP_NAME = "TraderAI V7 High-Conviction"
-VERSION = "7.0.0"
+# ============================================================
+# TRADERAI V7.2 SPEED UPGRADE
+# ============================================================
+
+APP_NAME = "TraderAI V7.2 Speed Upgrade"
+VERSION = "7.2.0"
 MODE = "analysis_only"
+
+# Cache thời gian tính bằng giây
+MARKET_CACHE_SECONDS = 12
+MTF_CACHE_SECONDS = 45
+SNAPSHOT_CACHE_SECONDS = 12
+
+# Giới hạn request
+MAX_SNAPSHOT_SYMBOLS = 30
+MAX_MTF_WORKERS = 7
+MAX_SNAPSHOT_WORKERS = 8
 
 
 app = FastAPI(
@@ -75,6 +94,10 @@ app = FastAPI(
     version=VERSION,
 )
 
+
+# ============================================================
+# CORS
+# ============================================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -84,6 +107,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ============================================================
+# MODELS
+# ============================================================
 
 class Candle(BaseModel):
 
@@ -104,12 +131,96 @@ class AnalyzeRequest(BaseModel):
     )
 
 
+# ============================================================
+# CACHE
+# ============================================================
+
+_cache_lock = threading.RLock()
+
+_market_cache: dict[
+    tuple,
+    tuple[float, Any],
+] = {}
+
+_mtf_cache: dict[
+    tuple,
+    tuple[float, Any],
+] = {}
+
+_snapshot_cache: dict[
+    tuple,
+    tuple[float, Any],
+] = {}
+
+
+def _cache_get(
+    cache: dict,
+    key,
+    ttl: float,
+):
+
+    now = time.monotonic()
+
+    with _cache_lock:
+
+        item = cache.get(key)
+
+        if item is None:
+            return None
+
+        created_at, value = item
+
+        if (
+            now - created_at
+            > ttl
+        ):
+
+            cache.pop(
+                key,
+                None,
+            )
+
+            return None
+
+        return value
+
+
+def _cache_set(
+    cache: dict,
+    key,
+    value,
+):
+
+    with _cache_lock:
+
+        cache[key] = (
+            time.monotonic(),
+            value,
+        )
+
+
+def _cache_clear():
+
+    with _cache_lock:
+
+        _market_cache.clear()
+        _mtf_cache.clear()
+        _snapshot_cache.clear()
+
+
+# ============================================================
+# JSON SAFETY
+# ============================================================
+
 def json_safe(value):
 
     if value is None:
         return None
 
-    if isinstance(value, dict):
+    if isinstance(
+        value,
+        dict,
+    ):
 
         return {
             str(key): json_safe(item)
@@ -162,6 +273,10 @@ def json_safe(value):
 
     return value
 
+
+# ============================================================
+# DATAFRAME VALIDATION
+# ============================================================
 
 def validate_dataframe(
     candles,
@@ -220,6 +335,64 @@ def validate_dataframe(
     return df
 
 
+# ============================================================
+# MARKET DATA CACHE
+# ============================================================
+
+def fetch_market_klines_cached(
+    symbol: str,
+    timeframe: str,
+    limit: int,
+):
+
+    symbol = (
+        symbol
+        .upper()
+        .strip()
+    )
+
+    timeframe = (
+        timeframe
+        .upper()
+        .strip()
+    )
+
+    key = (
+        symbol,
+        timeframe,
+        int(limit),
+    )
+
+    cached = _cache_get(
+        _market_cache,
+        key,
+        MARKET_CACHE_SECONDS,
+    )
+
+    if cached is not None:
+        return cached
+
+    data = fetch_market_klines(
+        symbol,
+        timeframe,
+        limit,
+    )
+
+    data = json_safe(data)
+
+    _cache_set(
+        _market_cache,
+        key,
+        data,
+    )
+
+    return data
+
+
+# ============================================================
+# SINGLE TIMEFRAME ANALYSIS
+# ============================================================
+
 def analyze_one(
     symbol,
     timeframe,
@@ -227,11 +400,18 @@ def analyze_one(
     include_news=False,
 ):
 
-    df = fetch_market_dataframe(
+    df = fetch_market_dataframe_cached(
         symbol,
         timeframe,
         limit,
     )
+
+    if df is None or len(df) < 220:
+
+        raise ValueError(
+            f"Không đủ dữ liệu cho "
+            f"{symbol} {timeframe}"
+        )
 
     base_analysis = analyze_market(
         df
@@ -261,10 +441,16 @@ def analyze_one(
 
     return {
         "signal":
-            analysis["signal"],
+            analysis.get(
+                "signal",
+                "NEUTRAL",
+            ),
 
         "confidence":
-            analysis["confidence"],
+            analysis.get(
+                "confidence",
+                0,
+            ),
 
         "analysis":
             analysis,
@@ -276,6 +462,10 @@ def analyze_one(
             timeframe,
     }
 
+
+# ============================================================
+# V7 HIGH-CONVICTION CONSENSUS
+# ============================================================
 
 def build_v7_consensus(
     results,
@@ -306,12 +496,26 @@ def build_v7_consensus(
             "NEUTRAL",
         )
 
-        confidence = float(
-            result.get(
-                "confidence",
-                50,
-            )
-        ) / 100
+        try:
+
+            confidence = float(
+                result.get(
+                    "confidence",
+                    50,
+                )
+            ) / 100
+
+        except Exception:
+
+            confidence = 0.0
+
+        confidence = max(
+            0.0,
+            min(
+                confidence,
+                1.0,
+            ),
+        )
 
         if signal == "BUY":
 
@@ -349,21 +553,39 @@ def build_v7_consensus(
 
         signal = "NEUTRAL"
 
-    directional_frames = [
-        result.get("signal")
-        for result in results.values()
-        if result.get("signal")
-        in {
-            "BUY",
-            "SELL",
-        }
-        and float(
-            result.get(
-                "confidence",
-                0,
+    directional_frames = []
+
+    for result in results.values():
+
+        result_signal = result.get(
+            "signal"
+        )
+
+        try:
+
+            result_confidence = float(
+                result.get(
+                    "confidence",
+                    0,
+                )
             )
-        ) >= 62
-    ]
+
+        except Exception:
+
+            result_confidence = 0.0
+
+        if (
+            result_signal
+            in {
+                "BUY",
+                "SELL",
+            }
+            and result_confidence >= 62
+        ):
+
+            directional_frames.append(
+                result_signal
+            )
 
     same_direction = sum(
         1
@@ -474,8 +696,15 @@ def build_v7_consensus(
 
         "engine_version":
             ENGINE_VERSION,
+
+        "speed_version":
+            VERSION,
     }
 
+
+# ============================================================
+# HISTORY
+# ============================================================
 
 def history_payload(
     symbol,
@@ -529,6 +758,7 @@ def history_payload(
         ):
 
             selected = analysis
+
             break
 
     selected = selected or {}
@@ -567,8 +797,15 @@ def history_payload(
             selected.get(
                 "signal_quality"
             ),
+
+        "analysis_only":
+            True,
     }
 
+
+# ============================================================
+# ROOT
+# ============================================================
 
 @app.get("/")
 def root():
@@ -588,8 +825,15 @@ def root():
 
         "analysis_only":
             True,
+
+        "engine_version":
+            ENGINE_VERSION,
     }
 
+
+# ============================================================
+# HEALTH
+# ============================================================
 
 @app.get("/api/health")
 def health():
@@ -613,10 +857,29 @@ def health():
         "engine_version":
             ENGINE_VERSION,
 
+        "speed_upgrade":
+            True,
+
+        "cache":
+            {
+                "market_seconds":
+                    MARKET_CACHE_SECONDS,
+
+                "mtf_seconds":
+                    MTF_CACHE_SECONDS,
+
+                "snapshot_seconds":
+                    SNAPSHOT_CACHE_SECONDS,
+            },
+
         "timeframes":
             TIMEFRAMES,
     }
 
+
+# ============================================================
+# STATUS
+# ============================================================
 
 @app.get("/api/status")
 def status():
@@ -646,10 +909,17 @@ def status():
         "engine_version":
             ENGINE_VERSION,
 
+        "speed_upgrade":
+            True,
+
         "assets":
             ASSETS,
     }
 
+
+# ============================================================
+# MARKET DATA
+# ============================================================
 
 @app.get("/api/market-data")
 def market_data(
@@ -662,7 +932,25 @@ def market_data(
     ),
 ):
 
+    symbol = (
+        symbol
+        .upper()
+        .strip()
+    )
+
+    timeframe = (
+        timeframe
+        .upper()
+        .strip()
+    )
+
     try:
+
+        data = fetch_market_klines_cached(
+            symbol,
+            timeframe,
+            limit,
+        )
 
         return json_safe(
             {
@@ -670,22 +958,24 @@ def market_data(
                     "ok",
 
                 "symbol":
-                    symbol.upper(),
+                    symbol,
 
                 "timeframe":
-                    timeframe.upper(),
+                    timeframe,
 
                 "data":
-                    fetch_market_klines(
-                        symbol,
-                        timeframe,
-                        limit,
-                    ),
+                    data,
 
                 "source":
                     get_symbol_info(
                         symbol
                     ),
+
+                "cached":
+                    True,
+
+                "cache_seconds":
+                    MARKET_CACHE_SECONDS,
             }
         )
 
@@ -700,6 +990,249 @@ def market_data(
         )
 
 
+# ============================================================
+# FAST MARKET SNAPSHOT
+# ============================================================
+
+@app.get("/api/market-snapshot")
+def market_snapshot(
+    symbols: str,
+):
+
+    requested = [
+        item.strip().upper()
+        for item in symbols.split(",")
+        if item.strip()
+    ]
+
+    requested = list(
+        dict.fromkeys(
+            requested
+        )
+    )[:MAX_SNAPSHOT_SYMBOLS]
+
+    if not requested:
+
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Cần ít nhất một symbol."
+            ),
+        )
+
+    cache_key = tuple(
+        sorted(requested)
+    )
+
+    cached = _cache_get(
+        _snapshot_cache,
+        cache_key,
+        SNAPSHOT_CACHE_SECONDS,
+    )
+
+    if cached is not None:
+
+        return json_safe(
+            {
+                **cached,
+                "cached":
+                    True,
+            }
+        )
+
+    results = {}
+
+    def get_quote(
+        symbol,
+    ):
+
+        try:
+
+            df = fetch_market_dataframe_cached(
+                symbol,
+                "M1",
+                2,
+            )
+
+            if (
+                df is None
+                or df.empty
+            ):
+
+                return {
+                    "symbol":
+                        symbol,
+
+                    "status":
+                        "error",
+
+                    "error":
+                        "Không có dữ liệu",
+                }
+
+            row = df.iloc[-1]
+
+            close = float(
+                row.get(
+                    "close",
+                    np.nan,
+                )
+            )
+
+            previous_close = None
+
+            if len(df) >= 2:
+
+                previous_close = float(
+                    df.iloc[-2].get(
+                        "close",
+                        np.nan,
+                    )
+                )
+
+            change = None
+            change_percent = None
+
+            if (
+                previous_close
+                and math.isfinite(
+                    previous_close
+                )
+                and previous_close != 0
+                and math.isfinite(close)
+            ):
+
+                change = (
+                    close
+                    - previous_close
+                )
+
+                change_percent = (
+                    change
+                    / previous_close
+                    * 100
+                )
+
+            return {
+                "symbol":
+                    symbol,
+
+                "status":
+                    "ok",
+
+                "price":
+                    close,
+
+                "previous_price":
+                    previous_close,
+
+                "change":
+                    change,
+
+                "change_percent":
+                    change_percent,
+
+                "source":
+                    get_symbol_info(
+                        symbol
+                    ),
+            }
+
+        except Exception as exc:
+
+            return {
+                "symbol":
+                    symbol,
+
+                "status":
+                    "error",
+
+                "error":
+                    str(exc),
+            }
+
+    with ThreadPoolExecutor(
+        max_workers=min(
+            MAX_SNAPSHOT_WORKERS,
+            len(requested),
+        )
+    ) as pool:
+
+        jobs = {
+            pool.submit(
+                get_quote,
+                symbol,
+            ):
+                symbol
+
+            for symbol in requested
+        }
+
+        for job in as_completed(
+            jobs
+        ):
+
+            symbol = jobs[
+                job
+            ]
+
+            try:
+
+                results[
+                    symbol
+                ] = job.result()
+
+            except Exception as exc:
+
+                results[
+                    symbol
+                ] = {
+                    "symbol":
+                        symbol,
+
+                    "status":
+                        "error",
+
+                    "error":
+                        str(exc),
+                }
+
+    payload = {
+        "status":
+            "ok",
+
+        "symbols":
+            requested,
+
+        "data":
+            results,
+
+        "analysis_only":
+            True,
+
+        "version":
+            VERSION,
+    }
+
+    _cache_set(
+        _snapshot_cache,
+        cache_key,
+        payload,
+    )
+
+    return json_safe(
+        {
+            **payload,
+            "cached":
+                False,
+        }
+    )
+
+
+# ============================================================
+# NEWS
+# ============================================================
+
 @app.get("/api/news")
 def api_news(
     symbol: str,
@@ -710,18 +1243,36 @@ def api_news(
     ),
 ):
 
-    return json_safe(
-        {
-            "status":
-                "ok",
+    try:
 
-            **fetch_news(
-                symbol,
-                limit,
+        result = fetch_news(
+            symbol.upper().strip(),
+            limit,
+        )
+
+        return json_safe(
+            {
+                "status":
+                    "ok",
+
+                **result,
+            }
+        )
+
+    except Exception as exc:
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "News thất bại: "
+                f"{exc}"
             ),
-        }
-    )
+        )
 
+
+# ============================================================
+# MANUAL ANALYSIS
+# ============================================================
 
 @app.post("/api/analyze")
 def analyze(
@@ -754,6 +1305,12 @@ def analyze(
 
                 "analysis":
                     result,
+
+                "analysis_only":
+                    True,
+
+                "engine_version":
+                    ENGINE_VERSION,
             }
         )
 
@@ -771,6 +1328,10 @@ def analyze(
         )
 
 
+# ============================================================
+# LIVE MTF ANALYSIS
+# ============================================================
+
 @app.get("/api/analyze-live-mtf")
 def analyze_live_mtf(
     symbol: str,
@@ -787,11 +1348,36 @@ def analyze_live_mtf(
         .strip()
     )
 
+    cache_key = (
+        symbol,
+        int(limit),
+    )
+
+    cached = _cache_get(
+        _mtf_cache,
+        cache_key,
+        MTF_CACHE_SECONDS,
+    )
+
+    if cached is not None:
+
+        return json_safe(
+            {
+                **cached,
+                "cached":
+                    True,
+            }
+        )
+
     results = {}
     errors = {}
 
+    # --------------------------------------------------------
+    # Chạy 7 timeframe song song
+    # --------------------------------------------------------
+
     with ThreadPoolExecutor(
-        max_workers=7
+        max_workers=MAX_MTF_WORKERS
     ) as pool:
 
         jobs = {
@@ -853,9 +1439,17 @@ def analyze_live_mtf(
                         timeframe,
                 }
 
+    # --------------------------------------------------------
+    # Consensus
+    # --------------------------------------------------------
+
     consensus = build_v7_consensus(
         results
     )
+
+    # --------------------------------------------------------
+    # History
+    # --------------------------------------------------------
 
     history_record = None
 
@@ -881,7 +1475,7 @@ def analyze_live_mtf(
             "history"
         ] = str(exc)
 
-    return json_safe(
+    response = json_safe(
         {
             "status":
                 "ok",
@@ -911,9 +1505,28 @@ def analyze_live_mtf(
                 get_symbol_info(
                     symbol
                 ),
+
+            "speed_version":
+                VERSION,
         }
     )
 
+    _cache_set(
+        _mtf_cache,
+        cache_key,
+        response,
+    )
+
+    return {
+        **response,
+        "cached":
+            False,
+    }
+
+
+# ============================================================
+# HISTORY
+# ============================================================
 
 @app.get("/api/history")
 def api_history(
@@ -950,6 +1563,10 @@ def api_history(
     )
 
 
+# ============================================================
+# HISTORY REFRESH
+# ============================================================
+
 @app.get("/api/history/refresh")
 def api_history_refresh(
     limit: int = Query(
@@ -975,6 +1592,10 @@ def api_history_refresh(
         }
     )
 
+
+# ============================================================
+# HISTORY RECORD
+# ============================================================
 
 @app.post("/api/history/record")
 def api_history_record(
@@ -1010,6 +1631,10 @@ def api_history_record(
         )
 
 
+# ============================================================
+# DELETE HISTORY
+# ============================================================
+
 @app.delete("/api/history")
 def api_history_delete():
 
@@ -1024,3 +1649,27 @@ def api_history_delete():
                 True,
         }
     )
+
+
+# ============================================================
+# CACHE CONTROL
+# ============================================================
+
+@app.post("/api/cache/clear")
+def api_cache_clear():
+
+    _cache_clear()
+
+    return {
+        "status":
+            "ok",
+
+        "message":
+            "Đã xóa toàn bộ cache.",
+
+        "analysis_only":
+            True,
+
+        "version":
+            VERSION,
+    }
