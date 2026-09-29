@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="vi">
 <head>
 <meta charset="utf-8">
@@ -960,7 +960,15 @@ const API_MODE=
     : (IS_GITHUB_PAGES ? "GITHUB_PAGES" : "WEB");
 
 const TV={
-  XAUUSD:"OANDA:XAUUSD"
+  XAUUSD:"OANDA:XAUUSD",
+  EURUSD:"OANDA:EURUSD",
+  GBPUSD:"OANDA:GBPUSD",
+  US30:"CAPITALCOM:US30",
+  US500:"CAPITALCOM:US500",
+  USDJPY:"OANDA:USDJPY",
+  BTCUSD:"COINBASE:BTCUSD",
+  ETHUSD:"COINBASE:ETHUSD",
+  USOIL:"TVC:USOIL"
 };
 
 const BN=[
@@ -975,7 +983,7 @@ const ALL=[
   ...BN.map(s=>({s,src:"BN"}))
 ];
 
-let selected=ALL.find(x=>x.s==="XAUUSD");
+let selected=ALL.find(x=>x.s==="BTCUSD");
 let interval="60";
 let filter="all";
 
@@ -1791,58 +1799,36 @@ function select(s){
 }
 
 async function health(){
+
   if(healthInFlight)return;
   healthInFlight=true;
+
   try{
-    const r=await fetch(
-      LOCAL_API_URL+"/api/health?ts="+Date.now(),
-      {
-        method:"GET",
-        cache:"no-store",
-        headers:{
-          "Accept":"application/json"
-        }
-      }
-    );
-    if(!r.ok)
-      throw Error("HTTP "+r.status);
-    const d=await r.json();
-    if(d.status!=="running")
-      throw Error(
-        d.message||
-        "Backend không ở trạng thái running"
-      );
+    const d=await apiJSON("/api/health",{},HEALTH_TIMEOUT,{silent:true,keepState:true});
+    if(d.status!=="running") throw Error(d.message||"Backend không ở trạng thái running");
+
     backendOnline=true;
     healthFailures=0;
     setBackendState("ok");
-    if($("time"))
-      $("time").textContent=
-        new Date().toLocaleTimeString("vi-VN");
-    if($("ds"))
-      $("ds").textContent=
-        selected.src==="TV"
-          ?"TradingView · backend analysis"
-          :"Binance live";
-    console.log(
-      "NovaTrade backend OK:",
-      d
-    );
+
+    if($("time")) $("time").textContent=new Date().toLocaleTimeString("vi-VN");
+    if($("ds")) $("ds").textContent=selected.src==="TV"?"TradingView · backend analysis":"Binance live";
+
   }catch(e){
     healthFailures++;
-    backendOnline=false;
-    setBackendState(
-      "bad",
-      "Backend chưa kết nối: "+
-      (e?.message||"unknown error")
-    );
-    console.error(
-      "NovaTrade health error:",
-      e
-    );
+    if(healthFailures>=HEALTH_FAIL_LIMIT){
+      backendOnline=false;
+      setBackendState("bad",`Backend chưa phản hồi sau ${HEALTH_FAIL_LIMIT} lần kiểm tra. Đang tự thử lại...`);
+    }else if(backendOnline){
+      setBackendState("ok");
+    }else{
+      setBackendState("busy");
+    }
   }finally{
     healthInFlight=false;
   }
 }
+
 function startBackendHeartbeat(){
   if(healthTimer) clearInterval(healthTimer);
   healthTimer=setInterval(()=>health(),60000);
@@ -2070,23 +2056,21 @@ function render(d){
       tfData
     );
 
-  const overallSignal =
-    d?.overall_signal ??
-    d?.consensus?.signal ??
-    d?.consensus?.consensus ??
-    d?.signal ??
-    "NEUTRAL";
-  const overallConfidence =
-    Number(
-      d?.overall_confidence ??
-      d?.consensus?.confidence
+  const s=
+    String(
+      a.signal ??
+      tfData.signal ??
+      d?.consensus?.consensus ??
+      d?.consensus ??
+      d?.signal ??
+      "NEUTRAL"
+    ).toUpperCase();
+
+  const c=
+    pickNum(
+      a,
+      ["confidence"]
     );
-  const s =
-    String(overallSignal).toUpperCase();
-  const c =
-    Number.isFinite(overallConfidence)
-      ? overallConfidence
-      : pickNum(a,["confidence"]);
 
   const i=
     a.indicators ||

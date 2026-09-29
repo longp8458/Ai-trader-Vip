@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import copy
 import math
@@ -38,8 +38,8 @@ from backend.news import fetch_news
 # APP
 # ============================================================
 
-APP_NAME = "TraderAI V7.2.8 Smart Cache Engine"
-VERSION = "7.2.8"
+APP_NAME = "TraderAI V7.2.7 Cache Engine"
+VERSION = "7.2.7"
 MODE = "analysis_only"
 
 app = FastAPI(
@@ -82,17 +82,17 @@ class AnalyzeRequest(BaseModel):
 # SPEED / CACHE CONFIG
 # ============================================================
 
-MARKET_CACHE_SECONDS = 15.0
+MARKET_CACHE_SECONDS = 20.0
 
 # Aggregate MTF cache.
-MTF_CACHE_SECONDS = 60.0
+MTF_CACHE_SECONDS = 90.0
 
-SNAPSHOT_CACHE_SECONDS = 15.0
+SNAPSHOT_CACHE_SECONDS = 20.0
 
-SNAPSHOT_REQUEST_TIMEOUT = 4.0
+SNAPSHOT_REQUEST_TIMEOUT = 6.0
 
 # Maximum time allowed for a complete MTF request.
-MTF_REQUEST_TIMEOUT = 12.0
+MTF_REQUEST_TIMEOUT = 20.0
 
 
 # ============================================================
@@ -226,7 +226,7 @@ def validate_dataframe(candles):
     if len(df) < 220:
         raise HTTPException(
             422,
-            "CÃ¡ÂºÂ§n ÃƒÂ­t nhÃ¡ÂºÂ¥t 220 candle hÃ¡Â»Â£p lÃ¡Â»â€¡.",
+            "Cần ít nhất 220 candle hợp lệ.",
         )
 
     return df
@@ -416,107 +416,23 @@ def analyze_one(
     # RESULT
     # --------------------------------------------------------
 
-    # --------------------------------------------------------
-    # RESULT
-    # --------------------------------------------------------
-    #
-    # Expose the complete analysis at the timeframe root.
-    # This keeps the MTF API schema compatible with the frontend.
-    #
-    # =====================================================
-    # NOVATRADE MTF ANALYSIS SCHEMA
-    # Expose real analysis data at timeframe root.
-    # Binance / XAUUSD / other symbols use same schema.
-    # =====================================================
-    _indicators = analysis.get(
-        "indicators",
-        {}
-    ) or {}
-    _structure = analysis.get(
-        "structure",
-        {}
-    ) or {}
-    _candlestick = analysis.get(
-        "candlestick",
-        {}
-    ) or {}
-    _levels = analysis.get(
-        "levels",
-        {}
-    ) or {}
-    _trade_levels = analysis.get(
-        "trade_levels",
-        {}
-    ) or {}
     result = {
-        # -----------------------------
-        # Core
-        # -----------------------------
         "signal": analysis.get(
             "signal",
             "NEUTRAL",
         ),
+
         "confidence": analysis.get(
             "confidence",
             0,
         ),
-        "price": analysis.get(
-            "price",
-        ),
-        # -----------------------------
-        # Trade analysis
-        # -----------------------------
-        "entry": analysis.get(
-            "entry",
-            _trade_levels.get("entry"),
-        ),
-        "sl": analysis.get(
-            "sl",
-            _trade_levels.get("sl"),
-        ),
-        "tp1": analysis.get(
-            "tp1",
-            _trade_levels.get("tp1"),
-        ),
-        "tp2": analysis.get(
-            "tp2",
-            _trade_levels.get("tp2"),
-        ),
-        "tp3": analysis.get(
-            "tp3",
-            _trade_levels.get("tp3"),
-        ),
-        "rr": analysis.get(
-            "rr",
-        ),
-        # -----------------------------
-        # Levels
-        # -----------------------------
-        "trade_levels": _trade_levels,
-        "levels": _levels,
-        # -----------------------------
-        # Technical analysis
-        # -----------------------------
-        "indicators": _indicators,
-        "structure": _structure,
-        "candlestick": _candlestick,
-        # -----------------------------
-        # Reasoning
-        # -----------------------------
-        "reasoning": analysis.get(
-            "reasoning",
-            [],
-        ),
-        # -----------------------------
-        # Full original analysis
-        # -----------------------------
+
         "analysis": analysis,
-        # -----------------------------
-        # Metadata
-        # -----------------------------
+
         "source": get_symbol_info(
             symbol
         ),
+
         "timeframe": timeframe,
     }
 
@@ -1136,8 +1052,6 @@ def run_mtf(
         "timeframes": results,
 
         "consensus": consensus,
-        "overall_signal": consensus.get("signal", "NEUTRAL"),
-        "overall_confidence": consensus.get("confidence", 0),
 
         "errors": errors,
 
@@ -1152,7 +1066,7 @@ def run_mtf(
         ),
 
         "speed_upgrade":
-            "V7.2.8-SMART-CACHE",
+            "V7.2.7-CACHE-ENGINE",
 
         "cached_seconds":
             MTF_CACHE_SECONDS,
@@ -1228,7 +1142,7 @@ def root():
         "order_placement": False,
         "engine_version": ENGINE_VERSION,
         "speed_upgrade":
-            "V7.2.8-SMART-CACHE",
+            "V7.2.7-CACHE-ENGINE",
     }
 
 
@@ -1260,7 +1174,7 @@ def health():
         "timeframes": TIMEFRAMES,
 
         "speed_upgrade":
-            "V7.2.8-SMART-CACHE",
+            "V7.2.7-CACHE-ENGINE",
 
         "cache": {
 
@@ -1316,7 +1230,7 @@ def status():
         "assets": ASSETS,
 
         "speed_upgrade":
-            "V7.2.8-SMART-CACHE",
+            "V7.2.7-CACHE-ENGINE",
 
         "cache": {
 
@@ -1388,14 +1302,14 @@ def market_data(
                 MARKET_CACHE_SECONDS,
 
             "speed_upgrade":
-                "V7.2.8-SMART-CACHE",
+                "V7.2.7-CACHE-ENGINE",
         })
 
     except Exception as exc:
 
         raise HTTPException(
             500,
-            f"Market data thÃ¡ÂºÂ¥t bÃ¡ÂºÂ¡i: {exc}",
+            f"Market data thất bại: {exc}",
         )
 
 
@@ -1423,7 +1337,7 @@ def market_snapshot(
 
         raise HTTPException(
             422,
-            "CÃ¡ÂºÂ§n ÃƒÂ­t nhÃ¡ÂºÂ¥t mÃ¡Â»â„¢t symbol.",
+            "Cần ít nhất một symbol.",
         )
 
 
@@ -1561,7 +1475,7 @@ def market_snapshot(
         "analysis_only": True,
 
         "speed_upgrade":
-            "V7.2.8-SMART-CACHE",
+            "V7.2.7-CACHE-ENGINE",
 
         "request_timeout_seconds":
             SNAPSHOT_REQUEST_TIMEOUT,
@@ -1608,12 +1522,12 @@ def cache_clear():
         "status": "ok",
 
         "message":
-            "Ã„ÂÃƒÂ£ xÃƒÂ³a toÃƒÂ n bÃ¡Â»â„¢ cache V7.2.7",
+            "Đã xóa toàn bộ cache V7.2.7",
 
         "analysis_only": True,
 
         "speed_upgrade":
-            "V7.2.8-SMART-CACHE",
+            "V7.2.7-CACHE-ENGINE",
     }
 
 
@@ -1647,7 +1561,7 @@ def api_news(
 
         raise HTTPException(
             500,
-            f"News thÃ¡ÂºÂ¥t bÃ¡ÂºÂ¡i: {exc}",
+            f"News thất bại: {exc}",
         )
 
 
@@ -1691,7 +1605,7 @@ def analyze(
                 ENGINE_VERSION,
 
             "speed_upgrade":
-                "V7.2.8-SMART-CACHE",
+                "V7.2.7-CACHE-ENGINE",
         })
 
     except HTTPException:
@@ -1702,7 +1616,7 @@ def analyze(
 
         raise HTTPException(
             500,
-            f"PhÃƒÂ¢n tÃƒÂ­ch thÃ¡ÂºÂ¥t bÃ¡ÂºÂ¡i: {exc}",
+            f"Phân tích thất bại: {exc}",
         )
 
 
@@ -1772,7 +1686,7 @@ def analyze_live_mtf(
                 output[
                     "speed_upgrade"
                 ] = (
-                    "V7.2.8-SMART-CACHE"
+                    "V7.2.7-CACHE-ENGINE"
                 )
 
                 return json_safe(
@@ -1813,7 +1727,7 @@ def analyze_live_mtf(
     result[
         "speed_upgrade"
     ] = (
-        "V7.2.8-SMART-CACHE"
+        "V7.2.7-CACHE-ENGINE"
     )
 
 

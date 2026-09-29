@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import copy
 import math
@@ -226,7 +226,7 @@ def validate_dataframe(candles):
     if len(df) < 220:
         raise HTTPException(
             422,
-            "CÃ¡ÂºÂ§n ÃƒÂ­t nhÃ¡ÂºÂ¥t 220 candle hÃ¡Â»Â£p lÃ¡Â»â€¡.",
+            "Cáº§n Ã­t nháº¥t 220 candle há»£p lá»‡.",
         )
 
     return df
@@ -416,107 +416,23 @@ def analyze_one(
     # RESULT
     # --------------------------------------------------------
 
-    # --------------------------------------------------------
-    # RESULT
-    # --------------------------------------------------------
-    #
-    # Expose the complete analysis at the timeframe root.
-    # This keeps the MTF API schema compatible with the frontend.
-    #
-    # =====================================================
-    # NOVATRADE MTF ANALYSIS SCHEMA
-    # Expose real analysis data at timeframe root.
-    # Binance / XAUUSD / other symbols use same schema.
-    # =====================================================
-    _indicators = analysis.get(
-        "indicators",
-        {}
-    ) or {}
-    _structure = analysis.get(
-        "structure",
-        {}
-    ) or {}
-    _candlestick = analysis.get(
-        "candlestick",
-        {}
-    ) or {}
-    _levels = analysis.get(
-        "levels",
-        {}
-    ) or {}
-    _trade_levels = analysis.get(
-        "trade_levels",
-        {}
-    ) or {}
     result = {
-        # -----------------------------
-        # Core
-        # -----------------------------
         "signal": analysis.get(
             "signal",
             "NEUTRAL",
         ),
+
         "confidence": analysis.get(
             "confidence",
             0,
         ),
-        "price": analysis.get(
-            "price",
-        ),
-        # -----------------------------
-        # Trade analysis
-        # -----------------------------
-        "entry": analysis.get(
-            "entry",
-            _trade_levels.get("entry"),
-        ),
-        "sl": analysis.get(
-            "sl",
-            _trade_levels.get("sl"),
-        ),
-        "tp1": analysis.get(
-            "tp1",
-            _trade_levels.get("tp1"),
-        ),
-        "tp2": analysis.get(
-            "tp2",
-            _trade_levels.get("tp2"),
-        ),
-        "tp3": analysis.get(
-            "tp3",
-            _trade_levels.get("tp3"),
-        ),
-        "rr": analysis.get(
-            "rr",
-        ),
-        # -----------------------------
-        # Levels
-        # -----------------------------
-        "trade_levels": _trade_levels,
-        "levels": _levels,
-        # -----------------------------
-        # Technical analysis
-        # -----------------------------
-        "indicators": _indicators,
-        "structure": _structure,
-        "candlestick": _candlestick,
-        # -----------------------------
-        # Reasoning
-        # -----------------------------
-        "reasoning": analysis.get(
-            "reasoning",
-            [],
-        ),
-        # -----------------------------
-        # Full original analysis
-        # -----------------------------
+
         "analysis": analysis,
-        # -----------------------------
-        # Metadata
-        # -----------------------------
+
         "source": get_symbol_info(
             symbol
         ),
+
         "timeframe": timeframe,
     }
 
@@ -1395,7 +1311,7 @@ def market_data(
 
         raise HTTPException(
             500,
-            f"Market data thÃ¡ÂºÂ¥t bÃ¡ÂºÂ¡i: {exc}",
+            f"Market data tháº¥t báº¡i: {exc}",
         )
 
 
@@ -1423,7 +1339,7 @@ def market_snapshot(
 
         raise HTTPException(
             422,
-            "CÃ¡ÂºÂ§n ÃƒÂ­t nhÃ¡ÂºÂ¥t mÃ¡Â»â„¢t symbol.",
+            "Cáº§n Ã­t nháº¥t má»™t symbol.",
         )
 
 
@@ -1608,7 +1524,7 @@ def cache_clear():
         "status": "ok",
 
         "message":
-            "Ã„ÂÃƒÂ£ xÃƒÂ³a toÃƒÂ n bÃ¡Â»â„¢ cache V7.2.7",
+            "ÄÃ£ xÃ³a toÃ n bá»™ cache V7.2.7",
 
         "analysis_only": True,
 
@@ -1647,7 +1563,7 @@ def api_news(
 
         raise HTTPException(
             500,
-            f"News thÃ¡ÂºÂ¥t bÃ¡ÂºÂ¡i: {exc}",
+            f"News tháº¥t báº¡i: {exc}",
         )
 
 
@@ -1702,7 +1618,7 @@ def analyze(
 
         raise HTTPException(
             500,
-            f"PhÃƒÂ¢n tÃƒÂ­ch thÃ¡ÂºÂ¥t bÃ¡ÂºÂ¡i: {exc}",
+            f"PhÃ¢n tÃ­ch tháº¥t báº¡i: {exc}",
         )
 
 

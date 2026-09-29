@@ -423,35 +423,7 @@ def analyze_one(
     # Expose the complete analysis at the timeframe root.
     # This keeps the MTF API schema compatible with the frontend.
     #
-    # =====================================================
-    # NOVATRADE MTF ANALYSIS SCHEMA
-    # Expose real analysis data at timeframe root.
-    # Binance / XAUUSD / other symbols use same schema.
-    # =====================================================
-    _indicators = analysis.get(
-        "indicators",
-        {}
-    ) or {}
-    _structure = analysis.get(
-        "structure",
-        {}
-    ) or {}
-    _candlestick = analysis.get(
-        "candlestick",
-        {}
-    ) or {}
-    _levels = analysis.get(
-        "levels",
-        {}
-    ) or {}
-    _trade_levels = analysis.get(
-        "trade_levels",
-        {}
-    ) or {}
     result = {
-        # -----------------------------
-        # Core
-        # -----------------------------
         "signal": analysis.get(
             "signal",
             "NEUTRAL",
@@ -463,57 +435,49 @@ def analyze_one(
         "price": analysis.get(
             "price",
         ),
-        # -----------------------------
-        # Trade analysis
-        # -----------------------------
         "entry": analysis.get(
             "entry",
-            _trade_levels.get("entry"),
         ),
         "sl": analysis.get(
             "sl",
-            _trade_levels.get("sl"),
         ),
         "tp1": analysis.get(
             "tp1",
-            _trade_levels.get("tp1"),
         ),
         "tp2": analysis.get(
             "tp2",
-            _trade_levels.get("tp2"),
         ),
         "tp3": analysis.get(
             "tp3",
-            _trade_levels.get("tp3"),
         ),
         "rr": analysis.get(
             "rr",
         ),
-        # -----------------------------
-        # Levels
-        # -----------------------------
-        "trade_levels": _trade_levels,
-        "levels": _levels,
-        # -----------------------------
-        # Technical analysis
-        # -----------------------------
-        "indicators": _indicators,
-        "structure": _structure,
-        "candlestick": _candlestick,
-        # -----------------------------
-        # Reasoning
-        # -----------------------------
+        "trade_levels": analysis.get(
+            "trade_levels",
+            {},
+        ),
+        "levels": analysis.get(
+            "levels",
+            {},
+        ),
+        "indicators": analysis.get(
+            "indicators",
+            {},
+        ),
+        "structure": analysis.get(
+            "structure",
+            {},
+        ),
+        "candlestick": analysis.get(
+            "candlestick",
+            {},
+        ),
         "reasoning": analysis.get(
             "reasoning",
             [],
         ),
-        # -----------------------------
-        # Full original analysis
-        # -----------------------------
         "analysis": analysis,
-        # -----------------------------
-        # Metadata
-        # -----------------------------
         "source": get_symbol_info(
             symbol
         ),

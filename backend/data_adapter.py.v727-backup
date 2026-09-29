@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Any
 import math
@@ -22,9 +22,9 @@ YAHOO_BASE_URLS = [
 ]
 
 BINANCE_TIMEOUT = (3, 7)
-YAHOO_TIMEOUT = (3, 6)
+YAHOO_TIMEOUT = (3, 5)
 
-CACHE_SECONDS = 15.0
+CACHE_SECONDS = 20.0
 
 TIMEFRAME_MAP = {
     "M1": "1m",
@@ -126,26 +126,26 @@ _CACHE_LOCK = threading.Lock()
 
 def _clean_symbol(symbol: str) -> str:
     if not isinstance(symbol, str):
-        raise ValueError("Symbol pháº£i lÃ  chuá»—i.")
+        raise ValueError("Symbol phải là chuỗi.")
 
     symbol = symbol.strip().upper()
 
     if not symbol:
-        raise ValueError("Symbol khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng.")
+        raise ValueError("Symbol không được để trống.")
 
     return symbol
 
 
 def _clean_timeframe(timeframe: str) -> str:
     if not isinstance(timeframe, str):
-        raise ValueError("Timeframe pháº£i lÃ  chuá»—i.")
+        raise ValueError("Timeframe phải là chuỗi.")
 
     timeframe = timeframe.strip().upper()
 
     if timeframe not in TIMEFRAME_MAP:
         raise ValueError(
-            f"Timeframe khÃ´ng há»— trá»£: {timeframe}. "
-            f"Há»— trá»£: {', '.join(TIMEFRAME_MAP)}"
+            f"Timeframe không hỗ trợ: {timeframe}. "
+            f"Hỗ trợ: {', '.join(TIMEFRAME_MAP)}"
         )
 
     return timeframe
@@ -171,10 +171,10 @@ def _safe_float(value: Any) -> float | None:
 def _validate_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
 
     if df is None:
-        raise ValueError("DataFrame khÃ´ng tá»“n táº¡i.")
+        raise ValueError("DataFrame không tồn tại.")
 
     if df.empty:
-        raise ValueError("KhÃ´ng cÃ³ dá»¯ liá»‡u OHLCV.")
+        raise ValueError("Không có dữ liệu OHLCV.")
 
     df = df.copy()
 
@@ -190,7 +190,7 @@ def _validate_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
     for column in required:
         if column not in df.columns:
             raise ValueError(
-                f"Thiáº¿u cá»™t OHLCV: {column}"
+                f"Thiếu cột OHLCV: {column}"
             )
 
     df["timestamp"] = pd.to_datetime(
@@ -255,7 +255,7 @@ def _validate_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
 
     if df.empty:
         raise ValueError(
-            "KhÃ´ng cÃ²n candle OHLCV há»£p lá»‡."
+            "Không còn candle OHLCV hợp lệ."
         )
 
     return df
@@ -318,7 +318,7 @@ def _binance_to_dataframe(
 
     if not rows:
         raise ValueError(
-            "Binance khÃ´ng tráº£ vá» OHLCV há»£p lá»‡."
+            "Binance không trả về OHLCV hợp lệ."
         )
 
     return _validate_ohlcv(
@@ -362,12 +362,12 @@ def fetch_binance_klines(
 
     if not isinstance(data, list):
         raise ValueError(
-            "Binance tráº£ dá»¯ liá»‡u khÃ´ng há»£p lá»‡."
+            "Binance trả dữ liệu không hợp lệ."
         )
 
     if not data:
         raise ValueError(
-            f"KhÃ´ng cÃ³ dá»¯ liá»‡u {symbol} {timeframe}."
+            f"Không có dữ liệu {symbol} {timeframe}."
         )
 
     return data
@@ -395,24 +395,35 @@ def fetch_binance_dataframe(
 def _yahoo_range(
     timeframe: str,
 ) -> tuple[str, str]:
+
     timeframe = _clean_timeframe(timeframe)
+
     if timeframe == "M1":
-        return "2d", "1m"
+        return "7d", "1m"
+
     if timeframe == "M5":
-        return "7d", "5m"
+        return "60d", "5m"
+
     if timeframe == "M15":
-        return "15d", "15m"
+        return "60d", "15m"
+
     if timeframe == "H1":
-        return "45d", "1h"
+        return "730d", "1h"
+
     if timeframe == "H4":
-        return "180d", "1h"
+        return "730d", "1h"
+
     if timeframe == "D1":
-        return "2y", "1d"
+        return "10y", "1d"
+
     if timeframe == "W1":
-        return "10y", "1wk"
+        return "max", "1wk"
+
     raise ValueError(
         f"Timeframe Yahoo không hỗ trợ: {timeframe}"
     )
+
+
 # ============================================================
 # H4 RESAMPLE
 # ============================================================
@@ -523,7 +534,7 @@ def _fetch_yahoo_payload(
 
             if not results:
                 raise ValueError(
-                    f"Yahoo khÃ´ng cÃ³ result cho {ticker}."
+                    f"Yahoo không có result cho {ticker}."
                 )
 
             return results[0]
@@ -532,7 +543,7 @@ def _fetch_yahoo_payload(
             last_error = exc
 
     raise RuntimeError(
-        f"Yahoo khÃ´ng láº¥y Ä‘Æ°á»£c {ticker}: "
+        f"Yahoo không lấy được {ticker}: "
         f"{last_error}"
     )
 
@@ -548,7 +559,7 @@ def fetch_yahoo_klines(
 
     if symbol not in TV_SYMBOL_MAP:
         raise ValueError(
-            f"{symbol} khÃ´ng cÃ³ trong TV_SYMBOL_MAP."
+            f"{symbol} không có trong TV_SYMBOL_MAP."
         )
 
     ticker = TV_SYMBOL_MAP[symbol]["ticker"]
@@ -578,7 +589,7 @@ def fetch_yahoo_klines(
 
     if not quotes:
         raise ValueError(
-            f"Yahoo thiáº¿u OHLCV {symbol}."
+            f"Yahoo thiếu OHLCV {symbol}."
         )
 
     quote = quotes[0]
@@ -646,7 +657,7 @@ def fetch_yahoo_klines(
 
     if not rows:
         raise ValueError(
-            f"Yahoo khÃ´ng cÃ³ candle há»£p lá»‡ "
+            f"Yahoo không có candle hợp lệ "
             f"cho {symbol} {timeframe}."
         )
 
@@ -669,7 +680,7 @@ def fetch_yahoo_klines(
 
     if len(df) < 10:
         raise ValueError(
-            f"{symbol} {timeframe} chá»‰ cÃ³ "
+            f"{symbol} {timeframe} chỉ có "
             f"{len(df)} candle."
         )
 
@@ -813,7 +824,7 @@ def get_latest_quote(
 
     if df.empty:
         raise ValueError(
-            f"KhÃ´ng cÃ³ quote cho {symbol}."
+            f"Không có quote cho {symbol}."
         )
 
     last = df.iloc[-1]
@@ -941,10 +952,3 @@ def get_market_data(
         timeframe=timeframe,
         limit=limit,
     )
-
-
-
-
-
-
-

@@ -4,4 +4,9 @@ __pycache__/
 *.pyo
 *.pyd
 .env
-logs/
+logs/.env.*
+*.log
+*.sqlite
+*.db
+node_modules/
+.DS_Store
