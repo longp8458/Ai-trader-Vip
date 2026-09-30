@@ -1,9 +1,10 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Any
 import math
 import time
 import threading
+import json
 
 import numpy as np
 import pandas as pd
@@ -799,6 +800,115 @@ def fetch_market_dataframe_cached(
 # QUOTE
 # ============================================================
 
+
+def get_latest_quotes_batch(
+    symbols: list[str],
+) -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
+    requested = list(
+        dict.fromkeys(
+            _clean_symbol(x)
+            for x in symbols
+            if isinstance(x, str) and x.strip()
+        )
+    )
+    quotes = {}
+    errors = {}
+    binance_symbols = [
+        x for x in requested
+        if x not in TV_SYMBOL_MAP
+    ]
+    # --------------------------------------------------------
+    # BINANCE: 1 BULK REQUEST FOR ALL CRYPTO
+    # --------------------------------------------------------
+    if binance_symbols:
+        try:
+            response = requests.get(
+                f"{BINANCE_BASE_URL}/api/v3/ticker/24hr",
+                params={
+                    "symbols": json.dumps(
+                        binance_symbols,
+                        separators=(",", ":"),
+                    )
+                },
+                timeout=(3, 8),
+                headers={
+                    "User-Agent":
+                        "NovaTradeAI/7.2.8",
+                    "Accept":
+                        "application/json",
+                },
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, list):
+                raise ValueError(
+                    "Binance bulk ticker kh?ng h?p l?."
+                )
+            for item in payload:
+                try:
+                    symbol = _clean_symbol(
+                        item.get("symbol", "")
+                    )
+                    price = _safe_float(
+                        item.get("lastPrice")
+                    )
+                    change = _safe_float(
+                        item.get("priceChangePercent")
+                    )
+                    if price is None:
+                        continue
+                    previous = price
+                    if (
+                        change is not None
+                        and (1.0 + change / 100.0) != 0
+                    ):
+                        previous = (
+                            price
+                            / (1.0 + change / 100.0)
+                        )
+                    quotes[symbol] = {
+                        "symbol": symbol,
+                        "price": price,
+                        "previous": previous,
+                        "change_percent": change,
+                        "timestamp":
+                            pd.Timestamp.now(
+                                tz="UTC"
+                            ).isoformat(),
+                        "source":
+                            get_symbol_info(symbol),
+                        "analysis_only": True,
+                    }
+                except Exception as exc:
+                    errors[
+                        str(item.get(
+                            "symbol",
+                            "UNKNOWN"
+                        ))
+                    ] = str(exc)
+            for symbol in binance_symbols:
+                if (
+                    symbol not in quotes
+                    and symbol not in errors
+                ):
+                    errors[symbol] = (
+                        "Binance kh?ng tr? quote."
+                    )
+        except Exception as exc:
+            for symbol in binance_symbols:
+                errors[symbol] = str(exc)
+    # --------------------------------------------------------
+    # TRADINGVIEW / YAHOO SYMBOLS
+    # --------------------------------------------------------
+    for symbol in requested:
+        if symbol in TV_SYMBOL_MAP:
+            try:
+                quotes[symbol] = get_latest_quote(
+                    symbol
+                )
+            except Exception as exc:
+                errors[symbol] = str(exc)
+    return quotes, errors
 def get_latest_quote(
     symbol: str,
 ) -> dict[str, Any]:

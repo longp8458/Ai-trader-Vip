@@ -1795,7 +1795,7 @@ async function health(){
   healthInFlight=true;
   try{
     const r=await fetch(
-      LOCAL_API_URL+"/api/health?ts="+Date.now(),
+      API_URL+"/api/health?ts="+Date.now(),
       {
         method:"GET",
         cache:"no-store",

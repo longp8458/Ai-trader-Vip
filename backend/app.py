@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import copy
 import math
@@ -19,6 +19,7 @@ from backend.data_adapter import (
     fetch_market_dataframe_cached,
     fetch_market_klines,
     get_latest_quote,
+    get_latest_quotes_batch,
     get_symbol_info,
 )
 from backend.analyzer import analyze_market
@@ -1407,7 +1408,6 @@ def market_data(
 def market_snapshot(
     symbols: str,
 ):
-
     requested = list(
         dict.fromkeys(
             [
@@ -1417,173 +1417,93 @@ def market_snapshot(
             ]
         )
     )[:30]
-
-
     if not requested:
-
         raise HTTPException(
             422,
-            "CÃ¡ÂºÂ§n ÃƒÂ­t nhÃ¡ÂºÂ¥t mÃ¡Â»â„¢t symbol.",
+            "C?n ?t nh?t m?t symbol.",
         )
-
-
     key = tuple(
         sorted(requested)
     )
-
     now = time.time()
-
-
     # --------------------------------------------------------
     # CACHE
     # --------------------------------------------------------
-
     with _cache_lock:
-
         cached = _snapshot_cache.get(
             key
         )
-
         if cached:
-
-            cached_time, cached_data = (
-                cached
-            )
-
+            cached_time, cached_data = cached
             if (
                 now - cached_time
                 <= SNAPSHOT_CACHE_SECONDS
             ):
-
                 output = copy.deepcopy(
                     cached_data
                 )
-
                 output["cached"] = True
-
                 output[
                     "cache_age_seconds"
                 ] = round(
                     now - cached_time,
                     2,
                 )
-
                 return json_safe(
                     output
                 )
-
-
     # --------------------------------------------------------
-    # FETCH
+    # BULK FETCH
     # --------------------------------------------------------
-
-    quotes = {}
-
-    errors = {}
-
-    pool = ThreadPoolExecutor(
-        max_workers=min(
-            8,
-            len(requested),
+    try:
+        quotes, errors = (
+            get_latest_quotes_batch(
+                requested
+            )
         )
-    )
-
-
-    jobs = {
-        pool.submit(
-            get_latest_quote,
-            symbol,
-        ): symbol
+    except Exception as exc:
+        quotes = {}
+        errors = {
+            symbol: str(exc)
+            for symbol in requested
+        }
+    missing = [
+        symbol
         for symbol in requested
-    }
-
-
-    done, pending = wait(
-        list(jobs),
-        timeout=SNAPSHOT_REQUEST_TIMEOUT,
-    )
-
-
-    for job in done:
-
-        symbol = jobs[job]
-
-        try:
-
-            quotes[symbol] = (
-                job.result()
-            )
-
-        except Exception as exc:
-
-            errors[symbol] = str(
-                exc
-            )
-
-
-    for job in pending:
-
-        symbol = jobs[job]
-
-        errors[symbol] = (
-            f"Snapshot timeout after "
-            f"{SNAPSHOT_REQUEST_TIMEOUT:.1f}s"
-        )
-
-        job.cancel()
-
-
-    pool.shutdown(
-        wait=False,
-        cancel_futures=True,
-    )
-
-
+        if symbol not in quotes
+    ]
     result = {
-
         "status": "ok",
-
         "data": quotes,
-
         "items": quotes,
-
         "errors": errors,
-
         "cached": False,
-
-        "partial":
-            bool(pending)
-            or bool(errors),
-
-        "updated_at":
-            time.time(),
-
+        "partial": bool(missing),
+        "received": len(quotes),
+        "requested": len(requested),
+        "missing": missing,
+        "updated_at": time.time(),
         "analysis_only": True,
-
         "speed_upgrade":
             "V7.2.8-SMART-CACHE",
-
         "request_timeout_seconds":
             SNAPSHOT_REQUEST_TIMEOUT,
     }
-
-
-    if quotes:
-
+    # --------------------------------------------------------
+    # IMPORTANT:
+    # KH?NG CACHE SNAPSHOT THI?U
+    # --------------------------------------------------------
+    if quotes and not missing:
         with _cache_lock:
-
             _snapshot_cache[key] = (
                 time.time(),
                 copy.deepcopy(
                     result
                 ),
             )
-
-
     return json_safe(
         result
     )
-
 
 # ============================================================
 # CLEAR CACHE
